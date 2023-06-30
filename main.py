@@ -23,8 +23,7 @@ def hyper_params():
 	learning_params = {
 		'nBatch': 24,
 		'lr'    : 1.0e-3,
-		'max_epoch': 5000,
-
+		'max_epoch': 10,
 	}
 
 	hparams = {
@@ -216,7 +215,7 @@ def test(hparams):
 	criterion = torch.nn.MSELoss()
 	loss = 0
 	result = []
-	print(len(tstloader))
+	#print(len(tstloader))
 
 	for i, (x, y) in enumerate(tstloader):
 		x = x.squeeze()
@@ -234,9 +233,9 @@ def test(hparams):
 
 		output = model(batch_data)
 		result.append(output.detach().numpy())
-		print(type(output.squeeze()))
-		print(type(y))
-		print('???')
+		#print(type(output.squeeze()))
+		#print(type(y))
+		#print('???')
 
 		loss += criterion(output.squeeze(), y)
 	
@@ -370,8 +369,8 @@ if __name__=='__main__':
 				solar_list.append(path)
 
 		#print(solar_list)
-		pattern = re.compile(r"(\d{4}_\d{2}/\d{1,2})")
-		solar_list.sort(key=lambda path: datetime.strptime(pattern.search(path).group(1).replace("_", "/"), '%Y/%m/%d'))
+		#pattern = re.compile(r"(\d{4}_\d{2}/\d{1,2})")
+		#solar_list.sort(key=lambda path: datetime.strptime(pattern.search(path).group(1).replace("_", "/"), '%Y/%m/%d'))
 
 		# find period
 		first_ = solar_list[0].split('.')[1].split('/')

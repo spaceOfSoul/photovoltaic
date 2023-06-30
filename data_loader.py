@@ -18,7 +18,7 @@ class WPD(Dataset):
 			os.makedirs(datapath)
 		
 	def __len__(self):
-		return len(self.wlist)
+		return min(len(self.wlist),len(self.elist))
 
 	def __getitem__(self, idx):
 		wfilepath = self.wlist[idx]
