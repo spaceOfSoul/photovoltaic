@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import re
+from datetime import datetime
 import sys
 import torch
 import argparse
@@ -21,7 +23,7 @@ def hyper_params():
 	learning_params = {
 		'nBatch': 24,
 		'lr'    : 1.0e-3,
-		'max_epoch': 10,
+		'max_epoch': 5000,
 
 	}
 
@@ -61,7 +63,7 @@ def parse_flags():
 	test_group.add_argument('--load_path', type=str, default='')
 	test_group.add_argument('--test_weather_dir', type=str, default='')
 	test_group.add_argument('--test_solar_dir', type=str, default='')
-	test_group.add_argument('--test_loc_ID', type=int, default=-1)
+	test_group.add_argument('--test_loc_ID', type=int, default=876)
 	flags = parser.parse_args()
 
 	# Additional per-mode validation
@@ -77,6 +79,7 @@ def parse_flags():
 		sys.exit(1)
 
 	return flags
+
 
 
 def train(hparams):
@@ -181,7 +184,18 @@ def test(hparams):
 	learning_params = hparams['learning']
 
 	modelPath = hparams['load_path']
-	ckpt = torch.load(modelPath)
+	try:
+		ckpt = torch.load(modelPath)
+		if not isinstance(ckpt, dict):
+			raise ValueError(f"Loaded object from {modelPath} is not a dictionary.")
+		if 'kwargs' not in ckpt or 'paramSet' not in ckpt:
+			raise ValueError(f"Dictionary from {modelPath} does not contain expected keys.")
+		model_conf = ckpt['kwargs']
+		paramSet = ckpt['paramSet']
+	except Exception as e:
+		print(f"Error occurred while loading model from {modelPath}")
+		print(f"Error: {e}")
+
 	model_conf = ckpt['kwargs']
 	paramSet = ckpt['paramSet']
 
@@ -198,10 +212,12 @@ def test(hparams):
 	seqLeng = model_params['seqLeng']
 	nBatch  = learning_params['nBatch']
 	prev_data = torch.zeros([seqLeng, input_dim])	# 14 is for featDim
-
+#
 	criterion = torch.nn.MSELoss()
 	loss = 0
 	result = []
+	print(len(tstloader))
+
 	for i, (x, y) in enumerate(tstloader):
 		x = x.squeeze()
 		x = torch.cat((prev_data, x), axis=0)
@@ -218,6 +234,10 @@ def test(hparams):
 
 		output = model(batch_data)
 		result.append(output.detach().numpy())
+		print(type(output.squeeze()))
+		print(type(y))
+		print('???')
+
 		loss += criterion(output.squeeze(), y)
 	
 	print(f'Tsn Loss: {loss.item():.4f}')
@@ -348,6 +368,10 @@ if __name__=='__main__':
 			for file in mlist:
 				path = flags.test_solar_dir + '/' + folder + '/' + file
 				solar_list.append(path)
+
+		#print(solar_list)
+		pattern = re.compile(r"(\d{4}_\d{2}/\d{1,2})")
+		solar_list.sort(key=lambda path: datetime.strptime(pattern.search(path).group(1).replace("_", "/"), '%Y/%m/%d'))
 
 		# find period
 		first_ = solar_list[0].split('.')[1].split('/')

@@ -11,7 +11,9 @@ class WPD(Dataset):
 		self.wlist = weather_list	# all files for weather info
 		self.elist = energy_list	# all files for power gener.
 		self.rID   = region_ID
-		
+		#print(f'wlist : {len(self.wlist)} elist : {len(self.elist)}')
+		# when test , wlist : 272, elist : 243
+
 		if not os.path.isdir(datapath):
 			os.makedirs(datapath)
 		
