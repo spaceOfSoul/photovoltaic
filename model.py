@@ -1,0 +1,35 @@
+import torch
+from torch import nn
+
+class RNN(nn.Module):
+	def __init__(self, input_dim, hidden_dim, output_dim):
+		super(RNN, self).__init__()
+		self.rnn = nn.RNN(input_size=input_dim, hidden_size=hidden_dim, batch_first=True, dtype=torch.double)
+		self.fc = nn.Linear(hidden_dim, output_dim)
+
+		self.fc.weight.data = self.fc.weight.data.double()
+		self.fc.bias.data = self.fc.bias.data.double()
+
+	def load_state_dict(self, state_dict):
+		self.rnn = state_dict['rnn']
+		self.fc = state_dict['fc']
+
+	def state_dict(self, destination=None, prefix='', keep_vars=False):
+		state_dict = {
+			'rnn': self.rnn.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
+			'fc' : self.fc.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
+		}
+
+	def load_parameters(self, filename, save_flag=False):
+		parameters = {}
+		parameters.update({'rnn': self.rnn.state_dict()})
+		parameters.update({'fc': self.fc.state_dict()})
+		if save_flag:
+			torch.save(parameters, filename)
+		return parameters
+
+	def forward(self, x):
+		out, hidden = self.rnn(x)
+		out = out[:, -1, :]
+		out = self.fc(out)
+		return out
