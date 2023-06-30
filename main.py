@@ -67,8 +67,9 @@ def parse_flags():
 
 	return flags
 
-
 def train(hparams):
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 	trnset  = WPD(hparams['weather_list'], hparams['solar_list'], 678)
 	valset  = WPD(hparams['val_weather_list'], hparams['val_solar_list'], 678)
 
@@ -78,7 +79,7 @@ def train(hparams):
 	input_dim  = hparams['input_dim']
 	hidden_dim = hparams['nHidden']
 	output_dim = hparams['output_dim']
-	model = RNN(input_dim, hidden_dim, output_dim)
+	model = RNN(input_dim, hidden_dim, output_dim).to(device)
 
 	criterion = torch.nn.MSELoss()
 	optimizer = torch.optim.Adam(model.parameters(), lr=hparams['lr'])
@@ -86,7 +87,7 @@ def train(hparams):
 	max_epoch = hparams['max_epoch']
 	seqLeng = hparams['seqLeng']
 	nBatch  = hparams['nBatch']
-	prev_data = torch.zeros([seqLeng, input_dim])	# 14 is for featDim
+	prev_data = torch.zeros([seqLeng, input_dim]).to(device)	# 14 is for featDim
 
 	losses = []
 	val_losses = []
@@ -96,10 +97,10 @@ def train(hparams):
 		model.train()
 		loss = 0
 		for i, (x, y) in enumerate(trnloader):
-			x = x.squeeze()
+			x = x.squeeze().to(device)
 			x = torch.cat((prev_data, x), axis=0)
 			prev_data = x[-seqLeng:,:]
-			y = y.squeeze()
+			y = y.squeeze().to(device)
 
 			nLeng, nFeat = x.shape
 			batch_data = []
@@ -119,10 +120,10 @@ def train(hparams):
 		model.eval()
 		val_loss = 0
 		for i, (x, y) in enumerate(valloader):
-			x = x.squeeze()
+			x = x.squeeze().to(device)
 			x = torch.cat((prev_data, x), axis=0)
 			prev_data = x[-seqLeng:,:]
-			y = y.squeeze()
+			y = y.squeeze().to(device)
 
 			nLeng, nFeat = x.shape
 			batch_data = []
@@ -157,7 +158,6 @@ def train(hparams):
 		plt.ylabel('Loss')
 		plt.title('Training Loss')
 		plt.show()
-
 
 if __name__=='__main__':
 	flags = parse_flags()
