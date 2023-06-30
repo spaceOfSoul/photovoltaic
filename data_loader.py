@@ -26,7 +26,6 @@ class WPD(Dataset):
 		if os.path.isfile(wfile_npy):
 			weather_data = np.load(wfile_npy)
 		else:
-			print(wfilepath)
 			############## weather data loading  #################
 			# Loading: weather data for all regions written by chy
 			csv = pd.read_csv(wfilepath, encoding='CP949')

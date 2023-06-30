@@ -45,7 +45,7 @@ def parse_flags():
 
 	# Flags for validation only
 	validation_group = parser.add_argument_group('Flags for validation only')
-	validation_group.add_argument('--val_weather_dir', type=str, default='./dataset/AWS_val/')
+	validation_group.add_argument('--val_weather_dir', type=str, default='./dataset/AWS/')
 	validation_group.add_argument('--val_solar_dir', type=str, default='./dataset/photovoltaic/GWNU_C3/')
 
 	# Flags for test only
@@ -67,9 +67,8 @@ def parse_flags():
 
 	return flags
 
-def train(hparams):
-	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+def train(hparams):
 	trnset  = WPD(hparams['weather_list'], hparams['solar_list'], 678)
 	valset  = WPD(hparams['val_weather_list'], hparams['val_solar_list'], 678)
 
@@ -79,7 +78,7 @@ def train(hparams):
 	input_dim  = hparams['input_dim']
 	hidden_dim = hparams['nHidden']
 	output_dim = hparams['output_dim']
-	model = RNN(input_dim, hidden_dim, output_dim).to(device)
+	model = RNN(input_dim, hidden_dim, output_dim)
 
 	criterion = torch.nn.MSELoss()
 	optimizer = torch.optim.Adam(model.parameters(), lr=hparams['lr'])
@@ -87,7 +86,7 @@ def train(hparams):
 	max_epoch = hparams['max_epoch']
 	seqLeng = hparams['seqLeng']
 	nBatch  = hparams['nBatch']
-	prev_data = torch.zeros([seqLeng, input_dim]).to(device)	# 14 is for featDim
+	prev_data = torch.zeros([seqLeng, input_dim])	# 14 is for featDim
 
 	losses = []
 	val_losses = []
@@ -97,10 +96,10 @@ def train(hparams):
 		model.train()
 		loss = 0
 		for i, (x, y) in enumerate(trnloader):
-			x = x.squeeze().to(device)
+			x = x.squeeze()
 			x = torch.cat((prev_data, x), axis=0)
 			prev_data = x[-seqLeng:,:]
-			y = y.squeeze().to(device)
+			y = y.squeeze()
 
 			nLeng, nFeat = x.shape
 			batch_data = []
@@ -120,10 +119,10 @@ def train(hparams):
 		model.eval()
 		val_loss = 0
 		for i, (x, y) in enumerate(valloader):
-			x = x.squeeze().to(device)
+			x = x.squeeze()
 			x = torch.cat((prev_data, x), axis=0)
 			prev_data = x[-seqLeng:,:]
-			y = y.squeeze().to(device)
+			y = y.squeeze()
 
 			nLeng, nFeat = x.shape
 			batch_data = []
@@ -159,56 +158,103 @@ def train(hparams):
 		plt.title('Training Loss')
 		plt.show()
 
+
 if __name__=='__main__':
 	flags = parse_flags()
 	hp    = hyper_params()
 	
 	if flags.mode == 'train':
-		# build weather data list
-		weather_dir = os.listdir(flags.weather_dir)
-		weather_dir = sorted(weather_dir, key=lambda x:int(x.split('월')[0]))
-		weather_list = []
-		for folder in weather_dir:
-			wlist = os.listdir(flags.weather_dir+'/'+folder)
-			wlist.sort()
-			for file in wlist:
-				path = flags.weather_dir + '/' + folder + '/' + file
-				weather_list.append(path)
-
-		#print(weather_list)
-		#print(len(weather_list))
-
-		# build weather data list
-		weather_dir = os.listdir(flags.val_weather_dir)
-		weather_dir = sorted(weather_dir, key=lambda x:int(x.split('월')[0]))
-		val_weather_list = []
-		for folder in weather_dir:
-			wlist = os.listdir(flags.val_weather_dir+'/'+folder)
-			wlist.sort()
-			for file in wlist:
-				path = flags.val_weather_dir + '/' + folder + '/' + file
-				val_weather_list.append(path)
-
+		#=============================== training data list ====================================#
 		# build photovoltaic data list
 		solar_dir = os.listdir(flags.solar_dir)
-		solar_dir = solar_dir[0:12]	# for 12 months
 		solar_list = []
 		for folder in solar_dir:
 			mlist = os.listdir(flags.solar_dir+'/'+folder)
+			mlist = [file for file in mlist if file.find('xlsx') > 0]
 			mlist = sorted(mlist, key=lambda x:int(x.split('.')[0]))
 			for file in mlist:
 				path = flags.solar_dir + '/' + folder + '/' + file
 				solar_list.append(path)
-		
+
+		# find period
+		first_ = solar_list[0].split('.')[1].split('/')
+		first_year, first_month = first_[-2].split('_')
+		first_day = str("%02d"%int(first_[-1]))
+		first_date = first_year+first_month+first_day
+
+		last_ = solar_list[-1].split('.')[1].split('/')
+		last_year, last_month = last_[-2].split('_')
+		last_day = str("%02d"%int(last_[-1]))
+		last_date = last_year+last_month+last_day
+		print('Training with data from %s to %s.'%(first_date, last_date))
+
+		# build weather data list
+		weather_dir = os.listdir(flags.weather_dir)
+		weather_list = []
+		stridx, endidx, cnt = -1, -1, -1
+		for folder in weather_dir:
+			wlist = os.listdir(flags.weather_dir+'/'+folder)
+			wlist = [file for file in wlist if file.find('csv') > 0]
+			wlist.sort()
+			for file in wlist:
+				path = flags.weather_dir + '/' + folder + '/' + file	
+				weather_list.append(path)
+				cnt += 1
+				if path.find(first_date) > 0:
+					stridx = cnt
+				if path.find(last_date) > 0:
+					endidx = cnt
+
+		weather_list = weather_list[stridx:endidx+1]
+		#========================================================================================#
+
+
+		#=============================== validation data list ===================================#		
 		# build photovoltaic data list
 		solar_dir = os.listdir(flags.val_solar_dir)
 		val_solar_list = []
 		for folder in solar_dir:
 			mlist = os.listdir(flags.val_solar_dir+'/'+folder)
+			mlist = [file for file in mlist if file.find('xlsx') > 0]
 			mlist = sorted(mlist, key=lambda x:int(x.split('.')[0]))
 			for file in mlist:
 				path = flags.val_solar_dir + '/' + folder + '/' + file
 				val_solar_list.append(path)
+
+		# find period
+		first_ = val_solar_list[0].split('.')[1].split('/')
+		first_year, first_month = first_[-2].split('_')
+		first_day = str("%02d"%int(first_[-1]))
+		first_date = first_year+first_month+first_day
+
+		last_ = val_solar_list[-1].split('.')[1].split('/')
+		last_year, last_month = last_[-2].split('_')
+		last_day = str("%02d"%int(last_[-1]))
+		last_date = last_year+last_month+last_day
+		print('Validating with data from %s to %s.'%(first_date, last_date))
+
+		# build weather data list
+		weather_dir = os.listdir(flags.val_weather_dir)
+		val_weather_list = []
+		stridx = -1
+		endidx = -1
+		cnt = -1
+		for folder in weather_dir:
+			wlist = os.listdir(flags.val_weather_dir+'/'+folder)
+			wlist = [file for file in wlist if file.find('csv') > 0]
+			wlist.sort()
+			for file in wlist:
+				path = flags.val_weather_dir + '/' + folder + '/' + file
+				val_weather_list.append(path)
+				cnt += 1
+				if path.find(first_date) > 0:
+					stridx = cnt
+				if path.find(last_date) > 0:
+					endidx = cnt
+
+		val_weather_list = val_weather_list[stridx:endidx+1]
+
+		#========================================================================================#
 
 		hp.update({"weather_list": weather_list})
 		hp.update({"val_weather_list": val_weather_list})
