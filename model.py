@@ -11,14 +11,15 @@ class RNN(nn.Module):
 		self.fc.bias.data = self.fc.bias.data.double()
 
 	def load_state_dict(self, state_dict):
-		self.rnn = state_dict['rnn']
-		self.fc = state_dict['fc']
+		self.rnn.load_state_dict(state_dict['rnn'])
+		self.fc.load_state_dict(state_dict['fc'])
 
 	def state_dict(self, destination=None, prefix='', keep_vars=False):
 		state_dict = {
 			'rnn': self.rnn.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
 			'fc' : self.fc.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
 		}
+		return state_dict
 
 	def load_parameters(self, filename, save_flag=False):
 		parameters = {}

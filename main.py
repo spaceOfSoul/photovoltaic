@@ -11,21 +11,28 @@ from torch.utils.data import DataLoader
 
 def hyper_params():
 	# Default setting
-	hparams = {
-		# model params
+	model_params = {
 		'seqLeng': 30,
 		'input_dim': 15,
 		'nHidden': 64,
 		'output_dim': 1,
+	}
 
-		# training params
+	learning_params = {
 		'nBatch': 24,
 		'lr'    : 1.0e-3,
-		'max_epoch': 5000,
+		'max_epoch': 10,
 
-		# plotting flag
+	}
+
+	hparams = {
+		'model' : model_params,
+		'learning' : learning_params,
+
+		# system flags
 		'loss_plot_flag': True,
 		'save_losses': True,
+		'save_result': True,
 	}
 
 	return hparams
@@ -42,6 +49,7 @@ def parse_flags():
 	training_group.add_argument('--save_dir', type=str, default='')
 	training_group.add_argument('--weather_dir', type=str, default='./dataset/AWS/')
 	training_group.add_argument('--solar_dir', type=str, default='./dataset/photovoltaic/GWNU_C9/')
+	training_group.add_argument('--loc_ID', type=int, default=678)
 
 	# Flags for validation only
 	validation_group = parser.add_argument_group('Flags for validation only')
@@ -51,6 +59,9 @@ def parse_flags():
 	# Flags for test only
 	test_group = parser.add_argument_group('Flags for test only')
 	test_group.add_argument('--load_path', type=str, default='')
+	test_group.add_argument('--test_weather_dir', type=str, default='')
+	test_group.add_argument('--test_solar_dir', type=str, default='')
+	test_group.add_argument('--test_loc_ID', type=int, default=-1)
 	flags = parser.parse_args()
 
 	# Additional per-mode validation
@@ -69,23 +80,26 @@ def parse_flags():
 
 
 def train(hparams):
-	trnset  = WPD(hparams['weather_list'], hparams['solar_list'], 678)
-	valset  = WPD(hparams['val_weather_list'], hparams['val_solar_list'], 678)
+	model_params = hparams['model']
+	learning_params = hparams['learning']
+
+	trnset  = WPD(hparams['weather_list'], hparams['solar_list'], hparams['loc_ID'])
+	valset  = WPD(hparams['val_weather_list'], hparams['val_solar_list'], hparams['loc_ID'])
 
 	trnloader = DataLoader(trnset, batch_size=1, shuffle=False, drop_last=True)
 	valloader = DataLoader(valset, batch_size=1, shuffle=False, drop_last=True)
 
-	input_dim  = hparams['input_dim']
-	hidden_dim = hparams['nHidden']
-	output_dim = hparams['output_dim']
+	input_dim  = model_params['input_dim']
+	hidden_dim = model_params['nHidden']
+	output_dim = model_params['output_dim']
 	model = RNN(input_dim, hidden_dim, output_dim)
 
 	criterion = torch.nn.MSELoss()
-	optimizer = torch.optim.Adam(model.parameters(), lr=hparams['lr'])
+	optimizer = torch.optim.Adam(model.parameters(), lr=learning_params['lr'])
 
-	max_epoch = hparams['max_epoch']
-	seqLeng = hparams['seqLeng']
-	nBatch  = hparams['nBatch']
+	max_epoch = learning_params['max_epoch']
+	seqLeng = model_params['seqLeng']
+	nBatch  = learning_params['nBatch']
 	prev_data = torch.zeros([seqLeng, input_dim])	# 14 is for featDim
 
 	losses = []
@@ -137,8 +151,11 @@ def train(hparams):
 
 		if val_loss < prev_loss:
 			savePath = os.path.join(hparams['save_dir'], 'best_model')	# overwrite
-			paramSet = model.state_dict()
-			torch.save(paramSet, savePath)
+			model_dict = {
+				'kwargs'   : model_params,
+				'paramSet' : model.state_dict()
+			}
+			torch.save(model_dict, savePath)
 			prev_loss = val_loss
 
 		losses.append(loss.item())
@@ -158,6 +175,56 @@ def train(hparams):
 		plt.title('Training Loss')
 		plt.show()
 
+
+def test(hparams):
+	model_params = hparams['model']
+	learning_params = hparams['learning']
+
+	modelPath = hparams['load_path']
+	ckpt = torch.load(modelPath)
+	model_conf = ckpt['kwargs']
+	paramSet = ckpt['paramSet']
+
+	input_dim  = model_conf['input_dim']
+	hidden_dim = model_conf['nHidden']
+	output_dim = model_conf['output_dim']
+	model = RNN(input_dim, hidden_dim, output_dim)
+	model.load_state_dict(paramSet)
+	model.eval()
+
+	tstset  = WPD(hparams['weather_list'], hparams['solar_list'], hparams['loc_ID'])
+	tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
+
+	seqLeng = model_params['seqLeng']
+	nBatch  = learning_params['nBatch']
+	prev_data = torch.zeros([seqLeng, input_dim])	# 14 is for featDim
+
+	criterion = torch.nn.MSELoss()
+	loss = 0
+	result = []
+	for i, (x, y) in enumerate(tstloader):
+		x = x.squeeze()
+		x = torch.cat((prev_data, x), axis=0)
+		prev_data = x[-seqLeng:,:]
+		y = y.squeeze()
+
+		nLeng, nFeat = x.shape
+		batch_data = []
+		for j in range(nBatch):
+			stridx = j*60
+			endidx = j*60 + seqLeng
+			batch_data.append(x[stridx:endidx,:].view(1,seqLeng, nFeat))
+		batch_data = torch.cat(batch_data, dim=0)
+
+		output = model(batch_data)
+		result.append(output.detach().numpy())
+		loss += criterion(output.squeeze(), y)
+	
+	print(f'Tsn Loss: {loss.item():.4f}')
+
+	if hparams['save_result']:
+		result_npy = np.array(result)
+		np.save('prediction.npy', result_npy)
 
 if __name__=='__main__':
 	flags = parse_flags()
@@ -236,9 +303,7 @@ if __name__=='__main__':
 		# build weather data list
 		weather_dir = os.listdir(flags.val_weather_dir)
 		val_weather_list = []
-		stridx = -1
-		endidx = -1
-		cnt = -1
+		stridx, endidx, cnt = -1, -1, -1
 		for folder in weather_dir:
 			wlist = os.listdir(flags.val_weather_dir+'/'+folder)
 			wlist = [file for file in wlist if file.find('csv') > 0]
@@ -261,8 +326,62 @@ if __name__=='__main__':
 		hp.update({"solar_list": solar_list})
 		hp.update({"val_solar_list": val_solar_list})
 		hp.update({"save_dir": flags.save_dir})
+		hp.update({"loc_ID": flags.loc_ID})
 
 		if not os.path.isdir(flags.save_dir):
 			os.makedirs(flags.save_dir)
 		
 		train(hp)
+
+	elif flags.mode == 'test':
+		hp.update({"load_path": flags.load_path})
+		hp.update({"loc_ID": flags.test_loc_ID})
+
+		#=============================== test data list ====================================#
+		# build photovoltaic data list
+		solar_dir = os.listdir(flags.test_solar_dir)
+		solar_list = []
+		for folder in solar_dir:
+			mlist = os.listdir(flags.test_solar_dir+'/'+folder)
+			mlist = [file for file in mlist if file.find('xlsx') > 0]
+			mlist = sorted(mlist, key=lambda x:int(x.split('.')[0]))
+			for file in mlist:
+				path = flags.test_solar_dir + '/' + folder + '/' + file
+				solar_list.append(path)
+
+		# find period
+		first_ = solar_list[0].split('.')[1].split('/')
+		first_year, first_month = first_[-2].split('_')
+		first_day = str("%02d"%int(first_[-1]))
+		first_date = first_year+first_month+first_day
+
+		last_ = solar_list[-1].split('.')[1].split('/')
+		last_year, last_month = last_[-2].split('_')
+		last_day = str("%02d"%int(last_[-1]))
+		last_date = last_year+last_month+last_day
+		print('Test with data from %s to %s.'%(first_date, last_date))
+
+		# build weather data list
+		weather_dir = os.listdir(flags.test_weather_dir)
+		weather_list = []
+		stridx, endidx, cnt = -1, -1, -1
+		for folder in weather_dir:
+			wlist = os.listdir(flags.test_weather_dir+'/'+folder)
+			wlist = [file for file in wlist if file.find('csv') > 0]
+			wlist.sort()
+			for file in wlist:
+				path = flags.test_weather_dir + '/' + folder + '/' + file	
+				weather_list.append(path)
+				cnt += 1
+				if path.find(first_date) > 0:
+					stridx = cnt
+				if path.find(last_date) > 0:
+					endidx = cnt
+
+		weather_list = weather_list[stridx:endidx+1]
+		#========================================================================================#
+
+		hp.update({"weather_list": weather_list})
+		hp.update({"solar_list": solar_list})
+
+		test(hp)
