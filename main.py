@@ -215,7 +215,7 @@ def test(hparams):
 	criterion = torch.nn.MSELoss()
 	loss = 0
 	result = []
-	#print(len(tstloader))
+	print(len(tstloader))
 
 	for i, (x, y) in enumerate(tstloader):
 		x = x.squeeze()
@@ -272,28 +272,37 @@ if __name__=='__main__':
 		last_year, last_month = last_[-2].split('_')
 		last_day = str("%02d"%int(last_[-1]))
 		last_date = last_year+last_month+last_day
+  
+  
 		print('Training with data from %s to %s.'%(first_date, last_date))
-
 		# build weather data list
 		weather_dir = os.listdir(flags.weather_dir)
+		weather_dir.sort(key=lambda x: int(x[:-1]) if x.endswith('월') else int(x))
+
+		# print(weather_dir)
+		# weather_dir.sort()
 		weather_list = []
 		stridx, endidx, cnt = -1, -1, -1
 		for folder in weather_dir:
 			wlist = os.listdir(flags.weather_dir+'/'+folder)
+			# print(wlist)
 			wlist = [file for file in wlist if file.find('csv') > 0]
 			wlist.sort()
+			# print(len(wlist))
 			for file in wlist:
 				path = flags.weather_dir + '/' + folder + '/' + file	
 				weather_list.append(path)
 				cnt += 1
 				if path.find(first_date) > 0:
 					stridx = cnt
+					print('stridx', stridx)
 				if path.find(last_date) > 0:
 					endidx = cnt
-
+					print('endidx', endidx)
+		# print(len(weather_list))
 		weather_list = weather_list[stridx:endidx+1]
 		#========================================================================================#
-
+		# print(len(weather_list))
 
 		#=============================== validation data list ===================================#		
 		# build photovoltaic data list
@@ -321,6 +330,8 @@ if __name__=='__main__':
 
 		# build weather data list
 		weather_dir = os.listdir(flags.val_weather_dir)
+		weather_dir.sort(key=lambda x: int(x[:-1]) if x.endswith('월') else int(x))
+		# print(weather_dir)
 		val_weather_list = []
 		stridx, endidx, cnt = -1, -1, -1
 		for folder in weather_dir:
@@ -368,10 +379,6 @@ if __name__=='__main__':
 				path = flags.test_solar_dir + '/' + folder + '/' + file
 				solar_list.append(path)
 
-		#print(solar_list)
-		#pattern = re.compile(r"(\d{4}_\d{2}/\d{1,2})")
-		#solar_list.sort(key=lambda path: datetime.strptime(pattern.search(path).group(1).replace("_", "/"), '%Y/%m/%d'))
-
 		# find period
 		first_ = solar_list[0].split('.')[1].split('/')
 		first_year, first_month = first_[-2].split('_')
@@ -386,7 +393,9 @@ if __name__=='__main__':
 
 		# build weather data list
 		weather_dir = os.listdir(flags.test_weather_dir)
+		weather_dir.sort(key=lambda x: int(x[:-1]) if x.endswith('월') else int(x))
 		weather_list = []
+	
 		stridx, endidx, cnt = -1, -1, -1
 		for folder in weather_dir:
 			wlist = os.listdir(flags.test_weather_dir+'/'+folder)
