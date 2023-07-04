@@ -11,6 +11,11 @@ from model import RNN
 from data_loader import WPD
 from torch.utils.data import DataLoader
 
+def path2date(path):
+	date_str = path.split('/')[-2] + '/' + path.split('/')[-1].replace('.xlsx','')
+	date = datetime.strptime(date_str, '%Y_%m/%d')
+	return date
+
 def hyper_params():
 	# Default setting
 	model_params = {
@@ -261,7 +266,9 @@ if __name__=='__main__':
 			for file in mlist:
 				path = flags.solar_dir + '/' + folder + '/' + file
 				solar_list.append(path)
-
+    
+		solar_list.sort(key=path2date)
+		print(solar_list)
 		# find period
 		first_ = solar_list[0].split('.')[1].split('/')
 		first_year, first_month = first_[-2].split('_')
@@ -315,7 +322,7 @@ if __name__=='__main__':
 			for file in mlist:
 				path = flags.val_solar_dir + '/' + folder + '/' + file
 				val_solar_list.append(path)
-
+		val_solar_list.sort(key=path2date)
 		# find period
 		first_ = val_solar_list[0].split('.')[1].split('/')
 		first_year, first_month = first_[-2].split('_')
@@ -378,7 +385,7 @@ if __name__=='__main__':
 			for file in mlist:
 				path = flags.test_solar_dir + '/' + folder + '/' + file
 				solar_list.append(path)
-
+		solar_list.sort(key=path2date)
 		# find period
 		first_ = solar_list[0].split('.')[1].split('/')
 		first_year, first_month = first_[-2].split('_')
