@@ -248,7 +248,7 @@ def test(hparams):
     model.eval()
 
     tstset = WPD(hparams["weather_list"], hparams["solar_list"], hparams["loc_ID"])
-    tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
+    tstloader = DataLoader(tstset, batch_size=10, shuffle=False, drop_last=True)
 
     seqLeng = model_params["seqLeng"]
     nBatch = learning_params["nBatch"]
