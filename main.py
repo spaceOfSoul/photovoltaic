@@ -5,7 +5,7 @@ import sys
 import torch
 import argparse
 
-from model import RNN
+from model import LSTM
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather
@@ -14,7 +14,7 @@ from utility import list_up_solar, list_up_weather
 def hyper_params():
     # Default setting
     model_params = {
-        "seqLeng": 60,
+        "seqLeng": 30,
         "input_dim": 8,
         "nHidden": 64,
         "output_dim": 1,
@@ -30,7 +30,7 @@ def hyper_params():
         "model": model_params,
         "learning": learning_params,
         # system flags
-        "loss_plot_flag": False,
+        "loss_plot_flag": True,
         "save_losses": True,
         "save_result": True,
     }
@@ -70,7 +70,7 @@ def parse_flags(hparams):
     test_group.add_argument("--load_path", type=str, default="")
     test_group.add_argument("--tst_aws_dir", type=str, default="./dataset/AWS/")
     test_group.add_argument("--tst_asos_dir", type=str, default="./dataset/ASOS/")
-    test_group.add_argument("--tst_solar_dir", type=str, default="")
+    test_group.add_argument("--tst_solar_dir", type=str, default="./samcheck/data/")
     test_group.add_argument("--tst_loc_ID", type=int, default=678)
 
     # Flags for training params
@@ -135,7 +135,7 @@ def train(hparams):
     input_dim = model_params["input_dim"]
     hidden_dim = model_params["nHidden"]
     output_dim = model_params["output_dim"]
-    model = RNN(input_dim, hidden_dim, output_dim)
+    model = LSTM(input_dim, hidden_dim, output_dim)
     model.cuda()
 
     criterion = torch.nn.MSELoss()
@@ -242,7 +242,7 @@ def test(hparams):
     input_dim = model_conf["input_dim"]
     hidden_dim = model_conf["nHidden"]
     output_dim = model_conf["output_dim"]
-    model = RNN(input_dim, hidden_dim, output_dim)
+    model = LSTM(input_dim, hidden_dim, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
@@ -317,7 +317,7 @@ if __name__ == "__main__":
 
     elif flags.mode == "test":
         hp.update({"load_path": flags.load_path})
-        hp.update({"loc_ID": flags.test_loc_ID})
+        hp.update({"loc_ID": flags.tst_loc_ID})
 
         # =============================== test data list ====================================#
         # build photovoltaic data list
