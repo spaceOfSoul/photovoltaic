@@ -5,11 +5,10 @@ import sys
 import torch
 import argparse
 
-from model import LSTMCNN
+from model import LSTMLSTM
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather
-
 
 def hyper_params():
     # Default setting
@@ -72,8 +71,7 @@ def parse_flags(hparams):
     test_group.add_argument("--tst_aws_dir", type=str, default="./dataset/AWS/")
     test_group.add_argument("--tst_asos_dir", type=str, default="./dataset/ASOS/")
     test_group.add_argument("--tst_solar_dir", type=str, default="./samcheck/data/")
-    test_group.add_argument("--tst_loc_ID", type=int, default=106) # donghae
-    test_group.add_argument("--tst_asos_loc_ID", type=int, default=876) # samcheck
+    test_group.add_argument("--tst_loc_ID", type=int, default=876) # donghae
 
     # Flags for training params
     trn_param_set = parser.add_argument_group("Flags for training paramters")
@@ -138,7 +136,7 @@ def train(hparams):
     hidden_dim1 = model_params["nHidden1"]
     hidden_dim2 = model_params["nHidden2"]
     output_dim = model_params["output_dim"]
-    model = LSTMCNN(input_dim, hidden_dim1,hidden_dim2, output_dim)
+    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
     model.cuda()
 
     criterion = torch.nn.MSELoss()
@@ -224,39 +222,39 @@ def train(hparams):
 
 
 def test(hparams):
-    model_params = hparams["model"]
-    learning_params = hparams["learning"]
+    model_params = hparams['model']
+    learning_params = hparams['learning']
 
-    modelPath = hparams["load_path"]
+    modelPath = hparams['load_path']
+    
     try:
         ckpt = torch.load(modelPath)
         if not isinstance(ckpt, dict):
             raise ValueError(f"Loaded object from {modelPath} is not a dictionary.")
-        if "kwargs" not in ckpt or "paramSet" not in ckpt:
-            raise ValueError(
-                f"Dictionary from {modelPath} does not contain expected keys."
-            )
-        model_conf = ckpt["kwargs"]
-        paramSet = ckpt["paramSet"]
+        if 'kwargs' not in ckpt or 'paramSet' not in ckpt:
+            raise ValueError(f"Dictionary from {modelPath} does not contain expected keys.")
+        model_conf = ckpt['kwargs']
+        paramSet = ckpt['paramSet']
     except Exception as e:
         print(f"Error occurred while loading model from {modelPath}")
         print(f"Error: {e}")
 
-    input_dim = model_params["input_dim"]
-    hidden_dim1 = model_params["nHidden1"]
-    hidden_dim2 = model_params["nHidden2"]
-    output_dim = model_params["output_dim"]
-    model = LSTMCNN(input_dim, hidden_dim1,hidden_dim2, output_dim)
+    input_dim  = model_conf['input_dim']
+    hidden_dim1 = model_conf['nHidden1']
+    hidden_dim2 = model_conf['nHidden2']
+    output_dim = model_conf['output_dim']
+    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
 
-    tstset = WPD(hparams["weather_list"], hparams["solar_list"], hparams["loc_ID"])
-    tstloader = DataLoader(tstset, batch_size=10, shuffle=False, drop_last=True)
+    # tstset  = WPD(hparams['weather_list'], hparams['solar_list'], hparams['loc_ID'])
+    tstset  = WPD(hparams['aws_list'], hparams['asos_list'], hparams['solar_list'], hparams['loc_ID'])    
+    tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
 
-    seqLeng = model_params["seqLeng"]
-    nBatch = learning_params["nBatch"]
-    prev_data = torch.zeros([seqLeng, input_dim]).cuda()  # 14 is for featDim
+    seqLeng = model_params['seqLeng']
+    nBatch  = learning_params['nBatch']
+    prev_data = torch.zeros([seqLeng, input_dim]).cuda()	# 14 is for featDim
 
     criterion = torch.nn.MSELoss()
     loss = 0
@@ -264,26 +262,26 @@ def test(hparams):
     for i, (x, y) in enumerate(tstloader):
         x = x.squeeze().cuda()
         x = torch.cat((prev_data, x), axis=0)
-        prev_data = x[-seqLeng:, :]
+        prev_data = x[-seqLeng:,:]
         y = y.squeeze().cuda()
 
         nLeng, nFeat = x.shape
         batch_data = []
         for j in range(nBatch):
-            stridx = j * 60
-            endidx = j * 60 + seqLeng
-            batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
+            stridx = j*60
+            endidx = j*60 + seqLeng
+            batch_data.append(x[stridx:endidx,:].view(1,seqLeng, nFeat))
         batch_data = torch.cat(batch_data, dim=0)
 
         output = model(batch_data)
         result.append(output.detach().cpu().numpy())
         loss += criterion(output.squeeze(), y)
 
-    print(f"Test Loss: {loss.item()/(i+1):.4f}")
+    print(f'Tsn Loss: {loss.item():.4f}')
 
-    if hparams["save_result"]:
+    if hparams['save_result']:
         result_npy = np.array(result)
-        np.save("prediction.npy", result_npy)
+        np.save('prediction.npy', result_npy)
 
 
 
