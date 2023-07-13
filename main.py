@@ -5,7 +5,7 @@ import sys
 import torch
 import argparse
 
-from model import LSTMLSTM
+from model import LSTM
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather
@@ -71,7 +71,7 @@ def parse_flags(hparams):
     test_group.add_argument("--tst_aws_dir", type=str, default="./dataset/AWS/")
     test_group.add_argument("--tst_asos_dir", type=str, default="./dataset/ASOS/")
     test_group.add_argument("--tst_solar_dir", type=str, default="./samcheck/data/")
-    test_group.add_argument("--tst_loc_ID", type=int, default=876) # donghae
+    test_group.add_argument("--tst_loc_ID", type=int, default=876)
 
     # Flags for training params
     trn_param_set = parser.add_argument_group("Flags for training paramters")
@@ -136,7 +136,7 @@ def train(hparams):
     hidden_dim1 = model_params["nHidden1"]
     hidden_dim2 = model_params["nHidden2"]
     output_dim = model_params["output_dim"]
-    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
+    model = LSTM(input_dim, hidden_dim1, output_dim)
     model.cuda()
 
     criterion = torch.nn.MSELoss()
@@ -243,7 +243,7 @@ def test(hparams):
     hidden_dim1 = model_conf['nHidden1']
     hidden_dim2 = model_conf['nHidden2']
     output_dim = model_conf['output_dim']
-    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
+    model = LSTM(input_dim, hidden_dim1, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
@@ -259,6 +259,7 @@ def test(hparams):
     criterion = torch.nn.MSELoss()
     loss = 0
     result = []
+    y_true=[]
     for i, (x, y) in enumerate(tstloader):
         x = x.squeeze().cuda()
         x = torch.cat((prev_data, x), axis=0)
@@ -275,6 +276,7 @@ def test(hparams):
 
         output = model(batch_data)
         result.append(output.detach().cpu().numpy())
+        y_true.append(y.detach().cpu().numpy())
         loss += criterion(output.squeeze(), y)
 
     print(f'Tsn Loss: {loss.item():.4f}')
@@ -282,7 +284,11 @@ def test(hparams):
     if hparams['save_result']:
         result_npy = np.array(result)
         np.save('prediction.npy', result_npy)
-
+    plt.plot(np.concatenate(y_true)[:400], label='True')
+    plt.plot(np.concatenate(result)[:400], label='Predicted')
+    plt.legend()
+    plt.savefig('Figure_predict.png')
+    plt.show()
 
 
 if __name__ == "__main__":
