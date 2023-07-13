@@ -5,7 +5,7 @@ import sys
 import torch
 import argparse
 
-from model import LSTMCNN
+from model import RNN
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather
@@ -17,7 +17,7 @@ def hyper_params():
         "seqLeng": 30,
         "input_dim": 8,
         "nHidden1": 64,
-        "nHidden2":128,
+        "nHidden2":108,
         "output_dim": 1,
     }
 
@@ -138,7 +138,7 @@ def train(hparams):
     hidden_dim1 = model_params["nHidden1"]
     hidden_dim2 = model_params["nHidden2"]
     output_dim = model_params["output_dim"]
-    model = LSTMCNN(input_dim, hidden_dim1,hidden_dim2, output_dim)
+    model = RNN(input_dim, hidden_dim1, output_dim)
     model.cuda()
 
     criterion = torch.nn.MSELoss()
@@ -170,7 +170,7 @@ def train(hparams):
                 batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
             batch_data = torch.cat(batch_data, dim=0)
 
-            output = model(batch_data.float().cuda())
+            output = model(batch_data)
             loss += criterion(output.squeeze(), y)
 
         optimizer.zero_grad()
@@ -194,7 +194,7 @@ def train(hparams):
                 batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
             batch_data = torch.cat(batch_data, dim=0)
 
-            output = model(batch_data.float().cuda())
+            output = model(batch_data)
             val_loss += criterion(output.squeeze(), y)
 
         if val_loss < prev_loss:
@@ -246,7 +246,7 @@ def test(hparams):
     hidden_dim1 = model_params["nHidden1"]
     hidden_dim2 = model_params["nHidden2"]
     output_dim = model_params["output_dim"]
-    model = LSTMCNN(input_dim, hidden_dim1,hidden_dim2, output_dim)
+    model = RNN(input_dim, hidden_dim1, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
