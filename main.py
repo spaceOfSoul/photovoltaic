@@ -71,7 +71,8 @@ def parse_flags(hparams):
     test_group.add_argument("--tst_aws_dir", type=str, default="./dataset/AWS/")
     test_group.add_argument("--tst_asos_dir", type=str, default="./dataset/ASOS/")
     test_group.add_argument("--tst_solar_dir", type=str, default="./samcheck/data/")
-    test_group.add_argument("--tst_loc_ID", type=int, default=678)
+    test_group.add_argument("--tst_loc_ID", type=int, default=106) # donghae
+    test_group.add_argument("--tst_asos_loc_ID", type=int, default=876) # samcheck
 
     # Flags for training params
     trn_param_set = parser.add_argument_group("Flags for training paramters")
@@ -275,11 +276,12 @@ def test(hparams):
         result.append(output.detach().cpu().numpy())
         loss += criterion(output.squeeze(), y)
 
-    print(f"Tsn Loss: {loss.item():.4f}")
+    print(f"Test Loss: {loss.item()/(i+1):.4f}")
 
     if hparams["save_result"]:
         result_npy = np.array(result)
         np.save("prediction.npy", result_npy)
+
 
 
 if __name__ == "__main__":

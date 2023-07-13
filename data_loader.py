@@ -8,45 +8,15 @@ from torch.utils.data import Dataset
 
 
 class WPD(Dataset):
-    def __init__(
-        self,
-        aws_list,
-        asos_list,
-        energy_list,
-        region_ID,
-        input_dim=8,
-        datapath="../dataset/",
-    ):
+    def __init__(self,aws_list,asos_list,energy_list,region_ID,input_dim=8,datapath="../dataset/",):
         self.aws_list = aws_list  # all files for weather info
         self.asos_list = asos_list
         self.elist = energy_list  # all files for power gener.
         self.rID = region_ID
         self.input_dim = input_dim
 
-        self.tags1 = [
-            "지점",
-            "지점명",
-            "일시",
-            "기온(°C)",
-            "1분 강수량(mm)",
-            "풍향(deg)",
-            "풍속(m/s)",
-            "현지기압(hPa)",
-            "해면기압(hPa)",
-            "습도(%)",
-        ]
-        self.tags2 = [
-            "지점",
-            "지점명",
-            "일시",
-            "기온(°C)",
-            "누적강수량(mm)",
-            "풍향(deg)",
-            "풍속(m/s)",
-            "현지기압(hPa)",
-            "해면기압(hPa)",
-            "습도(%)",
-        ]
+        self.tags1 = ["지점","지점명","일시","기온(°C)","1분 강수량(mm)","풍향(deg)","풍속(m/s)","현지기압(hPa)","해면기압(hPa)","습도(%)",]
+        self.tags2 = ["지점","지점명","일시","기온(°C)","누적강수량(mm)","풍향(deg)","풍속(m/s)","현지기압(hPa)","해면기압(hPa)","습도(%)",]
 
         if not os.path.isdir(datapath):
             os.makedirs(datapath)
