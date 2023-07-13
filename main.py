@@ -5,7 +5,7 @@ import sys
 import torch
 import argparse
 
-from model import LSTM
+from model import LSTMLSTM
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather
@@ -16,7 +16,8 @@ def hyper_params():
     model_params = {
         "seqLeng": 30,
         "input_dim": 8,
-        "nHidden": 64,
+        "nHidden1": 64,
+        "nHidden2":108,
         "output_dim": 1,
     }
 
@@ -134,9 +135,10 @@ def train(hparams):
     valloader = DataLoader(valset, batch_size=1, shuffle=False, drop_last=True)
 
     input_dim = model_params["input_dim"]
-    hidden_dim = model_params["nHidden"]
+    hidden_dim1 = model_params["nHidden1"]
+    hidden_dim2 = model_params["nHidden2"]
     output_dim = model_params["output_dim"]
-    model = LSTM(input_dim, hidden_dim, output_dim)
+    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
     model.cuda()
 
     criterion = torch.nn.MSELoss()
@@ -240,10 +242,11 @@ def test(hparams):
         print(f"Error occurred while loading model from {modelPath}")
         print(f"Error: {e}")
 
-    input_dim = model_conf["input_dim"]
-    hidden_dim = model_conf["nHidden"]
-    output_dim = model_conf["output_dim"]
-    model = LSTM(input_dim, hidden_dim, output_dim)
+    input_dim = model_params["input_dim"]
+    hidden_dim1 = model_params["nHidden1"]
+    hidden_dim2 = model_params["nHidden2"]
+    output_dim = model_params["output_dim"]
+    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
