@@ -164,8 +164,6 @@ class LSTMCNN(nn.Module):
         out, _ = self.lstm2(out)
         
         out = out.permute(0, 2, 1) 
-        # convlayer input shape : (batch_size, channels, sequence_length)
-        # channels is can match hidden dim
         out = self.conv1(out)
         out = self.pool1(out)
         out = self.conv2(out)

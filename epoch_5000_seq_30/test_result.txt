@@ -1,4 +1,0 @@
-Test with data from 20220101 to 20220831.
-wlist : 243 elist : 243
-243
-Tsn Loss: 8687.7261

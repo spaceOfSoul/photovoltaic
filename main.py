@@ -5,7 +5,7 @@ import sys
 import torch
 import argparse
 
-from model import LSTM
+from model import *
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather
@@ -15,8 +15,13 @@ def hyper_params():
     model_params = {
         "seqLeng": 30,
         "input_dim": 8,
+        # lstm, rnn
         "nHidden1": 64,
+        # lstm2lstm
         "nHidden2":128,
+        # lstm-cnn
+        # 
+        # output
         "output_dim": 1,
     }
 
@@ -44,8 +49,11 @@ def parse_flags(hparams):
     # Flags common to all modes
     all_modes_group = parser.add_argument_group("Flags common to all modes")
     all_modes_group.add_argument(
-        "--mode", type=str, choices=["train", "test"], required=True
+       "--mode", type=str, choices=["train", "test"], required=True
     )
+    all_modes_group.add_argument(
+       "--model", type=str, choices=["lstm", "rnn","lstm2lstm", "lstm-cnn"], required=True
+    ) 
 
     # Flags for training only
     training_group = parser.add_argument_group("Flags for training only")
@@ -110,7 +118,7 @@ def parse_flags(hparams):
     return flags, hparams
 
 
-def train(hparams):
+def train(hparams, model_type):
     model_params = hparams["model"]
     learning_params = hparams["learning"]
 
@@ -132,12 +140,31 @@ def train(hparams):
     trnloader = DataLoader(trnset, batch_size=1, shuffle=False, drop_last=True)
     valloader = DataLoader(valset, batch_size=1, shuffle=False, drop_last=True)
 
-    input_dim = model_params["input_dim"]
-    hidden_dim1 = model_params["nHidden1"]
-    hidden_dim2 = model_params["nHidden2"]
-    output_dim = model_params["output_dim"]
-    model = LSTM(input_dim, hidden_dim1, output_dim)
-    model.cuda()
+    if model_type == "rnn":
+        input_dim = model_params["input_dim"]
+        hidden_dim1 = model_params["nHidden1"]
+        output_dim = model_params["output_dim"]
+        model = RNN(input_dim, hidden_dim1, output_dim)
+        model.cuda()
+    elif model_type == "lstm":
+        input_dim = model_params["input_dim"]
+        hidden_dim1 = model_params["nHidden1"]
+        output_dim = model_params["output_dim"]
+        model = LSTM(input_dim, hidden_dim1, output_dim)
+        model.cuda()
+    elif model_type == "lstm2lstm":
+        input_dim = model_params["input_dim"]
+        hidden_dim1 = model_params["nHidden1"]
+        hidden_dim2 = model_params["nHidden2"]
+        output_dim = model_params["output_dim"]
+        model = LSTMLSTM(input_dim, hidden_dim1, hidden_dim2, output_dim)
+        model.cuda()
+    elif model_type == "lstm-cnn":
+        pass
+    elif model_type == "cnn-lstm":
+        pass
+    elif model_type == "XGBoost-lstm":
+        pass
 
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_params["lr"])
@@ -221,7 +248,7 @@ def train(hparams):
         plt.show()
 
 
-def test(hparams):
+def test(hparams, model_type):
     model_params = hparams['model']
     learning_params = hparams['learning']
 
@@ -239,6 +266,37 @@ def test(hparams):
         print(f"Error occurred while loading model from {modelPath}")
         print(f"Error: {e}")
 
+    if model_type == "rnn":
+        input_dim = model_conf["input_dim"]
+        try:
+            hidden_dim1 = model_conf["nHidden1"]
+        except:
+            hidden_dim1 = model_conf["nHidden"]
+        output_dim = model_conf["output_dim"]
+        model = RNN(input_dim, hidden_dim1, output_dim)
+        model.cuda()
+    elif model_type == "lstm":
+        input_dim = model_conf["input_dim"]
+        try:
+            hidden_dim1 = model_conf["nHidden1"]
+        except:
+            hidden_dim1 = model_conf["nHidden"]
+        output_dim = model_conf["output_dim"]
+        model = LSTM(input_dim, hidden_dim1, output_dim)
+        model.cuda()
+    elif model_type == "lstm2lstm":
+        input_dim = model_conf["input_dim"]
+        hidden_dim1 = model_conf["nHidden1"]
+        hidden_dim2 = model_conf["nHidden2"]
+        output_dim = model_conf["output_dim"]
+        model = LSTMLSTM(input_dim, hidden_dim1, hidden_dim2, output_dim)
+        model.cuda()
+    elif model_type == "lstm-cnn":
+        pass
+    elif model_type == "cnn-lstm":
+        pass
+    elif model_type == "XGBoost-lstm":
+        pass
     input_dim  = model_conf['input_dim']
     hidden_dim1 = model_conf['nHidden1']
     hidden_dim2 = model_conf['nHidden2']
@@ -322,7 +380,7 @@ if __name__ == "__main__":
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)
 
-        train(hp)
+        train(hp, flags.model)
 
     elif flags.mode == "test":
         hp.update({"load_path": flags.load_path})
@@ -340,4 +398,4 @@ if __name__ == "__main__":
         hp.update({"asos_list": asos_list})
         hp.update({"solar_list": solar_list})
 
-        test(hp)
+        test(hp, flags.model)
