@@ -13,7 +13,7 @@ from utility import list_up_solar, list_up_weather
 def hyper_params():
     # Default setting
     model_params = {
-        "seqLeng": 30,
+        "seqLeng": 60,
         "input_dim": 8,
         # lstm, rnn
         "nHidden1": 64,
@@ -28,7 +28,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 5000,
+        "max_epoch": 3000,
     }
 
     hparams = {
@@ -195,7 +195,7 @@ def train(hparams, model_type):
                 batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
             batch_data = torch.cat(batch_data, dim=0)
 
-            output = model(batch_data.float().cuda())
+            output = model(batch_data.cuda())
             loss += criterion(output.squeeze(), y)
 
         optimizer.zero_grad()
@@ -219,7 +219,7 @@ def train(hparams, model_type):
                 batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
             batch_data = torch.cat(batch_data, dim=0)
 
-            output = model(batch_data.float().cuda())
+            output = model(batch_data.cuda())
             val_loss += criterion(output.squeeze(), y)
 
         if val_loss < prev_loss:
@@ -301,7 +301,7 @@ def test(hparams, model_type):
     hidden_dim1 = model_conf['nHidden1']
     hidden_dim2 = model_conf['nHidden2']
     output_dim = model_conf['output_dim']
-    model = LSTM(input_dim, hidden_dim1, output_dim)
+    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
