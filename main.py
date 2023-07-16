@@ -28,7 +28,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 3000,
+        "max_epoch": 5000,
     }
 
     hparams = {
@@ -79,7 +79,7 @@ def parse_flags(hparams):
     test_group.add_argument("--tst_aws_dir", type=str, default="./dataset/AWS/")
     test_group.add_argument("--tst_asos_dir", type=str, default="./dataset/ASOS/")
     test_group.add_argument("--tst_solar_dir", type=str, default="./samcheck/data/")
-    test_group.add_argument("--tst_loc_ID", type=int, default=876)
+    test_group.add_argument("--tst_loc_ID", type=int, default=106)
 
     # Flags for training params
     trn_param_set = parser.add_argument_group("Flags for training paramters")
@@ -160,7 +160,14 @@ def train(hparams, model_type):
         model = LSTMLSTM(input_dim, hidden_dim1, hidden_dim2, output_dim)
         model.cuda()
     elif model_type == "lstm-cnn":
-        pass
+        input_dim = model_params["input_dim"]
+        hidden_dim1 = model_params["nHidden1"]
+        hidden_dim2 = model_params["nHidden2"]
+        output_dim = model_params["output_dim"]
+        seqLeng = model_params["seqLeng"]
+
+        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+        model.cuda()
     elif model_type == "cnn-lstm":
         pass
     elif model_type == "XGBoost-lstm":
@@ -186,6 +193,7 @@ def train(hparams, model_type):
             x = torch.cat((prev_data, x), axis=0)
             prev_data = x[-seqLeng:, :]
             y = y.squeeze().cuda()
+            y = y.float()
 
             nLeng, nFeat = x.shape
             batch_data = []
@@ -194,9 +202,11 @@ def train(hparams, model_type):
                 endidx = j * 60 + seqLeng
                 batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
             batch_data = torch.cat(batch_data, dim=0)
-
+            batch_data = batch_data.float()
+            
             output = model(batch_data.cuda())
             loss += criterion(output.squeeze(), y)
+
 
         optimizer.zero_grad()
         loss.backward()
@@ -274,7 +284,6 @@ def test(hparams, model_type):
             hidden_dim1 = model_conf["nHidden"]
         output_dim = model_conf["output_dim"]
         model = RNN(input_dim, hidden_dim1, output_dim)
-        model.cuda()
     elif model_type == "lstm":
         input_dim = model_conf["input_dim"]
         try:
@@ -283,30 +292,29 @@ def test(hparams, model_type):
             hidden_dim1 = model_conf["nHidden"]
         output_dim = model_conf["output_dim"]
         model = LSTM(input_dim, hidden_dim1, output_dim)
-        model.cuda()
     elif model_type == "lstm2lstm":
         input_dim = model_conf["input_dim"]
         hidden_dim1 = model_conf["nHidden1"]
         hidden_dim2 = model_conf["nHidden2"]
         output_dim = model_conf["output_dim"]
         model = LSTMLSTM(input_dim, hidden_dim1, hidden_dim2, output_dim)
-        model.cuda()
     elif model_type == "lstm-cnn":
-        pass
+        input_dim = model_conf["input_dim"]
+        hidden_dim1 = model_conf["nHidden1"]
+        hidden_dim2 = model_conf["nHidden2"]
+        output_dim = model_conf["output_dim"]
+        seqLeng = model_params["seqLeng"]
+
+        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
+        model.cuda()
     elif model_type == "cnn-lstm":
         pass
     elif model_type == "XGBoost-lstm":
         pass
-    input_dim  = model_conf['input_dim']
-    hidden_dim1 = model_conf['nHidden1']
-    hidden_dim2 = model_conf['nHidden2']
-    output_dim = model_conf['output_dim']
-    model = LSTMLSTM(input_dim, hidden_dim1,hidden_dim2, output_dim)
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
 
-    # tstset  = WPD(hparams['weather_list'], hparams['solar_list'], hparams['loc_ID'])
     tstset  = WPD(hparams['aws_list'], hparams['asos_list'], hparams['solar_list'], hparams['loc_ID'])    
     tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
 
@@ -315,7 +323,9 @@ def test(hparams, model_type):
     prev_data = torch.zeros([seqLeng, input_dim]).cuda()	# 14 is for featDim
 
     criterion = torch.nn.MSELoss()
-    loss = 0
+    total_loss = 0
+    total_mape = 0
+    total_samples = 0
     result = []
     y_true=[]
     for i, (x, y) in enumerate(tstloader):
@@ -335,15 +345,19 @@ def test(hparams, model_type):
         output = model(batch_data)
         result.append(output.detach().cpu().numpy())
         y_true.append(y.detach().cpu().numpy())
-        loss += criterion(output.squeeze(), y)
 
-    print(f'Tsn Loss: {loss.item():.4f}')
+        loss = criterion(output.squeeze(), y)
+        total_loss += loss.item() * x.size(0)
+
+    average_loss = total_loss / total_samples
+    
+    print(f'Average Loss: {average_loss:.4f}')
 
     if hparams['save_result']:
         result_npy = np.array(result)
         np.save('prediction.npy', result_npy)
-    plt.plot(np.concatenate(y_true)[:400], label='True')
-    plt.plot(np.concatenate(result)[:400], label='Predicted')
+    plt.plot(np.concatenate(y_true), label='True')
+    plt.plot(np.concatenate(result), label='Predicted')
     plt.legend()
     plt.savefig('Figure_predict.png')
     plt.show()

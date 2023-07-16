@@ -65,3 +65,12 @@ def list_up_weather(weather_directory, first_date, last_date):
     weather_list = weather_list[stridx:endidx+1]
 
     return weather_list
+
+def accuracy(y_true, y_pred, eps=1e-8):
+    return np.mean(np.abs((y_true - y_pred) / (y_true+eps))) * 100
+
+def conv_output_size(input_size, kernel_size, stride):
+    return (input_size - kernel_size) // stride + 1
+
+def pool_output_size(input_size, kernel_size, stride):
+    return (input_size - kernel_size) // stride + 1
