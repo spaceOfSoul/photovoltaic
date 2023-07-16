@@ -13,7 +13,7 @@ from utility import list_up_solar, list_up_weather
 def hyper_params():
     # Default setting
     model_params = {
-        "seqLeng": 60,
+        "seqLeng": 30,
         "input_dim": 8,
         # lstm, rnn
         "nHidden1": 64,
@@ -333,7 +333,7 @@ def test(hparams, model_type):
         x = torch.cat((prev_data, x), axis=0)
         prev_data = x[-seqLeng:,:]
         y = y.squeeze().cuda()
-
+        y = y.float()
         nLeng, nFeat = x.shape
         batch_data = []
         for j in range(nBatch):
@@ -341,13 +341,15 @@ def test(hparams, model_type):
             endidx = j*60 + seqLeng
             batch_data.append(x[stridx:endidx,:].view(1,seqLeng, nFeat))
         batch_data = torch.cat(batch_data, dim=0)
-
+        batch_data = batch_data.float()
         output = model(batch_data)
         result.append(output.detach().cpu().numpy())
         y_true.append(y.detach().cpu().numpy())
 
         loss = criterion(output.squeeze(), y)
+        
         total_loss += loss.item() * x.size(0)
+        total_samples += x.size(0)
 
     average_loss = total_loss / total_samples
     
@@ -356,8 +358,8 @@ def test(hparams, model_type):
     if hparams['save_result']:
         result_npy = np.array(result)
         np.save('prediction.npy', result_npy)
-    plt.plot(np.concatenate(y_true), label='True')
-    plt.plot(np.concatenate(result), label='Predicted')
+    plt.plot(np.concatenate(y_true)[:400], label='True')
+    plt.plot(np.concatenate(result)[:400], label='Predicted')
     plt.legend()
     plt.savefig('Figure_predict.png')
     plt.show()

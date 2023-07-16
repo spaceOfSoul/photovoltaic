@@ -9,12 +9,11 @@ class LSTM(nn.Module):
             input_size=input_dim,
             hidden_size=hidden_dim,
             batch_first=True,
-            dtype=torch.double,
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-        self.fc.weight.data = self.fc.weight.data.double()
-        self.fc.bias.data = self.fc.bias.data.double()
+        #self.fc.weight.data = self.fc.weight.data.double()
+        #self.fc.bias.data = self.fc.bias.data.double()
 
     def load_state_dict(self, state_dict):
         self.lstm.load_state_dict(state_dict["lstm"])
@@ -40,6 +39,7 @@ class LSTM(nn.Module):
         return parameters
 
     def forward(self, x):
+        x = x.float()
         out, (hidden, cell) = self.lstm(x)
         out = out[:, -1, :]
         out = self.fc(out)
@@ -52,18 +52,16 @@ class LSTMLSTM(nn.Module):
             input_size=input_dim,
             hidden_size=hidden_dim1,
             batch_first=True,
-            dtype=torch.double,
         )
         self.lstm2 = nn.LSTM(
             input_size=hidden_dim1,
             hidden_size=hidden_dim2,
             batch_first=True,
-            dtype=torch.double,
         )
         self.fc = nn.Linear(hidden_dim2, output_dim)
 
-        self.fc.weight.data = self.fc.weight.data.double()
-        self.fc.bias.data = self.fc.bias.data.double()
+        #self.fc.weight.data = self.fc.weight.data.double()
+        #self.fc.bias.data = self.fc.bias.data.double()
 
     def load_state_dict(self, state_dict):
         self.lstm1.load_state_dict(state_dict["lstm1"])
@@ -94,6 +92,7 @@ class LSTMLSTM(nn.Module):
         return parameters
 
     def forward(self, x):
+        x = x.float()
         out, (hidden, cell) = self.lstm1(x)
         out, (hidden, cell) = self.lstm2(out)
         out = out[:, -1, :]
@@ -108,12 +107,11 @@ class RNN(nn.Module):
             input_size=input_dim,
             hidden_size=hidden_dim,
             batch_first=True,
-            dtype=torch.double,
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-        self.fc.weight.data = self.fc.weight.data.double()
-        self.fc.bias.data = self.fc.bias.data.double()
+        #self.fc.weight.data = self.fc.weight.data.double()
+        #self.fc.bias.data = self.fc.bias.data.double()
 
     def load_state_dict(self, state_dict):
         self.rnn.load_state_dict(state_dict["rnn"])
@@ -139,6 +137,7 @@ class RNN(nn.Module):
         return parameters
 
     def forward(self, x):
+        x = x.float()
         out, hidden = self.rnn(x)
         out = out[:, -1, :]
         out = self.fc(out)
