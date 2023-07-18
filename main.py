@@ -169,7 +169,14 @@ def train(hparams, model_type):
         model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
         model.cuda()
     elif model_type == "cnn-lstm":
-        pass
+        input_dim = model_params["input_dim"]
+        hidden_dim1 = model_params["nHidden1"]
+        hidden_dim2 = model_params["nHidden2"]
+        output_dim = model_params["output_dim"]
+        seqLeng = model_params["seqLeng"]
+
+        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
+        model.cuda()
     elif model_type == "XGBoost-lstm":
         pass
 
@@ -193,7 +200,6 @@ def train(hparams, model_type):
             x = torch.cat((prev_data, x), axis=0)
             prev_data = x[-seqLeng:, :]
             y = y.squeeze().cuda()
-            y = y.double()
 
             nLeng, nFeat = x.shape
             batch_data = []
@@ -308,7 +314,14 @@ def test(hparams, model_type):
         model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
         model.cuda()
     elif model_type == "cnn-lstm":
-        pass
+        input_dim = model_conf["input_dim"]
+        hidden_dim1 = model_conf["nHidden1"]
+        hidden_dim2 = model_conf["nHidden2"]
+        output_dim = model_conf["output_dim"]
+        seqLeng = model_params["seqLeng"]
+
+        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
+        model.cuda()
     elif model_type == "XGBoost-lstm":
         pass
     model.load_state_dict(paramSet)
