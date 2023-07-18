@@ -50,12 +50,12 @@ class LSTMLSTM(nn.Module):
         self.lstm1 = nn.LSTM(
             input_size=input_dim,
             hidden_size=hidden_dim1,
-            batch_first=True,dtype=torch.double
+            batch_first=True, dtype=torch.double
         )
         self.lstm2 = nn.LSTM(
             input_size=hidden_dim1,
             hidden_size=hidden_dim2,
-            batch_first=True,dtype=torch.double
+            batch_first=True, dtype=torch.double
         )
         self.fc = nn.Linear(hidden_dim2, output_dim)
 
@@ -105,7 +105,6 @@ class RNN(nn.Module):
             input_size=input_dim,
             hidden_size=hidden_dim,
             batch_first=True,
-            
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
 

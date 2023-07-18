@@ -20,7 +20,7 @@ def hyper_params():
         # lstm2lstm
         "nHidden2":128,
         # lstm-cnn
-        # 
+        
         # output
         "output_dim": 1,
     }
@@ -257,11 +257,13 @@ def train(hparams, model_type):
         np.save(os.path.join(hparams["save_dir"],"val_loss.npy"), val_loss)
 
     if hparams["loss_plot_flag"]:
+        plt.figure()
         plt.plot(range(max_epoch), losses, "b", range(max_epoch), val_losses, "r")
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.title(f"Training Loss, (min val_loss:{min(val_losses):.4f})")
-        plt.show()
+        plt.savefig(os.path.join(hparams["save_dir"],"figure_train.png"))
+        plt.close()
 
 
 def test(hparams, model_type):
@@ -369,13 +371,27 @@ def test(hparams, model_type):
     
     print(f'Average Loss: {average_loss:.4f}')
 
+    model_dir = os.path.dirname(modelPath)
+    
     if hparams['save_result']:
         result_npy = np.array(result)
-        np.save('prediction.npy', result_npy)
-    plt.plot(np.concatenate(y_true), label='True')
-    plt.plot(np.concatenate(result), label=f'Predicted')
-    plt.legend()
-    plt.savefig('Figure_predict.png')
+        np.save(os.path.join(model_dir,"test_result.npy"), result_npy)
+    
+    chunks = len(y_true) // 4
+
+    y_true_chunks = [y_true[i:i+chunks] for i in range(0, len(y_true), chunks)]
+    result_chunks = [result[i:i+chunks] for i in range(0, len(result), chunks)]
+
+    _, axs = plt.subplots(2, 2, figsize=(10, 10))
+
+    for i, ax in enumerate(axs.flatten()):
+        ax.plot(np.concatenate(y_true_chunks[i]), label='True')
+        ax.plot(np.concatenate(result_chunks[i]), label='Predicted')
+        ax.legend()
+        ax.set_title(f'Plot {i+1} ~ {i+4}')
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(model_dir,"figure_test.png"))
     plt.show()
 
 
@@ -406,12 +422,16 @@ if __name__ == "__main__":
         hp.update({"val_solar_list": val_solar_list})
         hp.update({"save_dir": flags.save_dir})
         hp.update({"loc_ID": flags.loc_ID})
+        
+        # for test
+        hp.update({"load_path": flags.load_path+"/best_model"})
+        hp.update({"loc_ID": flags.tst_loc_ID})
 
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)
 
         train(hp, flags.model)
-
+        test(hp, flags.model)
     elif flags.mode == "test":
         hp.update({"load_path": flags.load_path})
         hp.update({"loc_ID": flags.tst_loc_ID})
