@@ -52,7 +52,7 @@ def parse_flags(hparams):
        "--mode", type=str, choices=["train", "test"], required=True
     )
     all_modes_group.add_argument(
-       "--model", type=str, choices=["lstm", "rnn","lstm2lstm", "lstm-cnn"], required=True
+       "--model", type=str, choices=["lstm", "rnn","lstm2lstm", "lstm-cnn", "cnn-lstm"], required=True
     ) 
 
     # Flags for training only
