@@ -8,12 +8,12 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(
             input_size=input_dim,
             hidden_size=hidden_dim,
-            batch_first=True,
+            batch_first=True,dtype=torch.double
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-        #self.fc.weight.data = self.fc.weight.data.double()
-        #self.fc.bias.data = self.fc.bias.data.double()
+        self.fc.weight.data = self.fc.weight.data.double()
+        self.fc.bias.data = self.fc.bias.data.double()
 
     def load_state_dict(self, state_dict):
         self.lstm.load_state_dict(state_dict["lstm"])
@@ -51,17 +51,17 @@ class LSTMLSTM(nn.Module):
         self.lstm1 = nn.LSTM(
             input_size=input_dim,
             hidden_size=hidden_dim1,
-            batch_first=True,
+            batch_first=True,dtype=torch.double
         )
         self.lstm2 = nn.LSTM(
             input_size=hidden_dim1,
             hidden_size=hidden_dim2,
-            batch_first=True,
+            batch_first=True,dtype=torch.double
         )
         self.fc = nn.Linear(hidden_dim2, output_dim)
 
-        #self.fc.weight.data = self.fc.weight.data.double()
-        #self.fc.bias.data = self.fc.bias.data.double()
+        self.fc.weight.data = self.fc.weight.data.double()
+        self.fc.bias.data = self.fc.bias.data.double()
 
     def load_state_dict(self, state_dict):
         self.lstm1.load_state_dict(state_dict["lstm1"])
@@ -107,11 +107,12 @@ class RNN(nn.Module):
             input_size=input_dim,
             hidden_size=hidden_dim,
             batch_first=True,
+            
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
 
-        #self.fc.weight.data = self.fc.weight.data.double()
-        #self.fc.bias.data = self.fc.bias.data.double()
+        self.fc.weight.data = self.fc.weight.data.double()
+        self.fc.bias.data = self.fc.bias.data.double()
 
     def load_state_dict(self, state_dict):
         self.rnn.load_state_dict(state_dict["rnn"])
@@ -147,12 +148,19 @@ class LSTMCNN(nn.Module):
     def __init__(self, input_dim, hidden_dim1, hidden_dim2,seq_len, output_dim):
         super(LSTMCNN, self).__init__()
         
-        self.lstm1 = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim1, batch_first=True)
-        self.lstm2 = nn.LSTM(input_size=hidden_dim1, hidden_size=hidden_dim2, batch_first=True)
+        self.lstm1 = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim1, batch_first=True,dtype=torch.double)
+        self.lstm2 = nn.LSTM(input_size=hidden_dim1, hidden_size=hidden_dim2, batch_first=True,dtype=torch.double)
         
         self.conv1 = nn.Conv1d(in_channels=hidden_dim2, out_channels=64, kernel_size=3, stride=1)
+        self.conv1.weight.data = self.conv1.weight.data.double()
+        self.conv1.bias.data = self.conv1.bias.data.double()
+
         self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
         self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=3, stride=1)
+        self.conv2.weight.data = self.conv2.weight.data.double()
+        self.conv2.bias.data = self.conv2.bias.data.double()
+
         self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
         
         conv1_output_size = conv_output_size(seq_len, kernel_size=3, stride=1)
@@ -164,14 +172,14 @@ class LSTMCNN(nn.Module):
         self.fc1 = nn.Linear(fc1_input_dim, 2048)
         self.fc2 = nn.Linear(2048, output_dim)
         
-        #self.fc1.weight.data = self.fc1.weight.data.double()
-        #self.fc1.bias.data = self.fc1.bias.data.double()
+        self.fc1.weight.data = self.fc1.weight.data.double()
+        self.fc1.bias.data = self.fc1.bias.data.double()
 
-        #self.fc2.weight.data = self.fc2.weight.data.double()
-        #self.fc2.bias.data = self.fc2.bias.data.double()
+        self.fc2.weight.data = self.fc2.weight.data.double()
+        self.fc2.bias.data = self.fc2.bias.data.double()
 
     def forward(self, x):
-        x = x.float()
+        #x = x.float()
 
         out, _ = self.lstm1(x)
         out, _ = self.lstm2(out)
@@ -185,7 +193,7 @@ class LSTMCNN(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
         out = self.fc2(out)
-        assert out.dtype == torch.float32, f"Output dtype is {out.dtype} instead of float32"
+        #assert out.dtype == torch.float32, f"Output dtype is {out.dtype} instead of float32"
         return out
 
     def load_state_dict(self, state_dict):
