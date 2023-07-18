@@ -28,7 +28,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 5000,
+        "max_epoch": 4,
     }
 
     hparams = {
@@ -377,22 +377,22 @@ def test(hparams, model_type):
         result_npy = np.array(result)
         np.save(os.path.join(model_dir,"test_result.npy"), result_npy)
     
-    chunks = len(y_true) // 4
+    image_dir = os.path.join(model_dir, "test_images")
+    os.makedirs(image_dir, exist_ok=True)
+    chunks = len(y_true) // 12
 
     y_true_chunks = [y_true[i:i+chunks] for i in range(0, len(y_true), chunks)]
     result_chunks = [result[i:i+chunks] for i in range(0, len(result), chunks)]
 
-    _, axs = plt.subplots(2, 2, figsize=(10, 10))
+    for i in range(12):
+        plt.figure(figsize=(10, 5))
+        plt.plot(np.concatenate(y_true_chunks[i]), label='True')
+        plt.plot(np.concatenate(result_chunks[i]), label='Predicted')
+        plt.legend()
+        plt.title(f'month {i+1}')
+        plt.savefig(os.path.join(image_dir, f"month_{i+1}.png"))
+        plt.close()
 
-    for i, ax in enumerate(axs.flatten()):
-        ax.plot(np.concatenate(y_true_chunks[i]), label='True')
-        ax.plot(np.concatenate(result_chunks[i]), label='Predicted')
-        ax.legend()
-        ax.set_title(f'Plot {i+1} ~ {i+4}')
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(model_dir,"figure_test.png"))
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -424,7 +424,7 @@ if __name__ == "__main__":
         hp.update({"loc_ID": flags.loc_ID})
         
         # for test
-        hp.update({"load_path": flags.load_path+"/best_model"})
+        hp.update({"load_path": flags.save_dir+"/best_model"})
         hp.update({"loc_ID": flags.tst_loc_ID})
 
         if not os.path.isdir(flags.save_dir):
