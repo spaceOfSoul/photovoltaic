@@ -12,17 +12,31 @@ from utility import list_up_solar, list_up_weather
 
 def hyper_params():
     # Default setting
-    model_params = {
+    nlayers = 4 # nlayers of CNN 
+    model_params = { 
+        # Common
         "seqLeng": 60,
-        "input_dim": 8,
-        # lstm, rnn
-        "nHidden1": 64,
-        # lstm2lstm
-        "nHidden2":128,
-        # lstm-cnn
+        "input_dim": 8, # feature 7 + time 1
+        "output_dim": 1, 
         
-        # output
-        "output_dim": 1,
+        # LSTM of single model(LSTM), LSTM1 of hybrid model(LSTM1-LSTM2-CNN), GRU1 of hybrid model(GRU1-GRU2-CNN), BiGRU1 of hybrid model(CNN-BiGRU1)
+        "nHidden1": 64, 
+        "dropout1": 0, 
+        "num_layers1": 1, # 2: BiGRU1 of hybrid model(CNN-BiGRU1)
+        
+        # LSTM2 of hybrid model(LSTM-CNN), GRU2 of hybrid model(GRU1-GRU2-CNN)
+        "nHidden2": 128,         
+        "dropout2": 0,
+        "num_layers2": 1,
+                        
+        # CNN
+        "activ": "relu", # leakyrelu, relu, glu, cg
+        "cnn_dropout": 0.5, 
+        "kernel_size": nlayers*[3],
+        "padding": nlayers*[1],
+        "stride": nlayers*[1], 
+        "nb_filters": [16, 32, 64, 128], # length of nb_filters should be equal to nlayers.
+        "pooling": nlayers*[1],     
     }
 
     learning_params = {
@@ -52,7 +66,7 @@ def parse_flags(hparams):
        "--mode", type=str, choices=["train", "test"], required=True
     )
     all_modes_group.add_argument(
-       "--model", type=str, choices=["lstm", "rnn","lstm2lstm", "lstm-cnn", "cnn-lstm"], required=True
+       "--model", type=str, choices=["lstm", "cnn", "gru-cnn", "lstm-cnn", "cnn-lstm", "cnn-bigru1"], required=True
     ) 
 
     # Flags for training only
@@ -139,46 +153,51 @@ def train(hparams, model_type):
 
     trnloader = DataLoader(trnset, batch_size=1, shuffle=False, drop_last=True)
     valloader = DataLoader(valset, batch_size=1, shuffle=False, drop_last=True)
+           
+    seqLeng = model_params["seqLeng"]
+    input_dim = model_params["input_dim"] # feature 7 + time 1
+    output_dim = model_params["output_dim"] 
+        
+    hidden_dim1 = model_params["nHidden1"] 
+    dropout1 = model_params["dropout1"] 
+    num_layers1 = model_params["num_layers1"] 
+        
+    hidden_dim2 = model_params["nHidden2"]         
+    dropout2 = model_params["dropout2"]
+    num_layers2 = model_params["num_layers2"]
+                        
+    activ = model_params["activ"] 
+    cnn_dropout = model_params["cnn_dropout"] 
+    kernel_size = model_params["kernel_size"]
+    padding = model_params["padding"]
+    stride = model_params["stride"] 
+    nb_filters = model_params["nb_filters"]
+    pooling = model_params["pooling"]     
+        
 
-    if model_type == "rnn":
-        input_dim = model_params["input_dim"]
-        hidden_dim1 = model_params["nHidden1"]
-        output_dim = model_params["output_dim"]
-        model = RNN(input_dim, hidden_dim1, output_dim)
-        model.cuda()
-    elif model_type == "lstm":
-        input_dim = model_params["input_dim"]
-        hidden_dim1 = model_params["nHidden1"]
-        output_dim = model_params["output_dim"]
-        model = LSTM(input_dim, hidden_dim1, output_dim)
-        model.cuda()
-    elif model_type == "lstm2lstm":
-        input_dim = model_params["input_dim"]
-        hidden_dim1 = model_params["nHidden1"]
-        hidden_dim2 = model_params["nHidden2"]
-        output_dim = model_params["output_dim"]
-        model = LSTMLSTM(input_dim, hidden_dim1, hidden_dim2, output_dim)
-        model.cuda()
-    elif model_type == "lstm-cnn":
-        input_dim = model_params["input_dim"]
-        hidden_dim1 = model_params["nHidden1"]
-        hidden_dim2 = model_params["nHidden2"]
-        output_dim = model_params["output_dim"]
-        seqLeng = model_params["seqLeng"]
+    model_classes = {
+        "lstm": LSTM,
+        "cnn": CNN,
+        "lstm-cnn": LSTMCNN,
+        "cnn-lstm": LSTMCNN,
+        "gru-cnn": GRUCNN,
+        "cnn-bigru1": CNNBiGRU1
+    }
 
-        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-        model.cuda()
-    elif model_type == "cnn-lstm":
-        input_dim = model_params["input_dim"]
-        hidden_dim1 = model_params["nHidden1"]
-        hidden_dim2 = model_params["nHidden2"]
-        output_dim = model_params["output_dim"]
-        seqLeng = model_params["seqLeng"]
-
-        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
-        model.cuda()
-    elif model_type == "XGBoost-lstm":
+    if model_type in ["lstm"]: # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
+    elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
+        model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
+    elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
+    elif model_type in ["cnn-bigru1"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
+    elif model_type in ["XGBoost-lstm"]:
+        pass # You can also add a print statement or action here as per your requirements
+    else:
         pass
+        
+    model.cuda()
 
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_params["lr"])
@@ -263,8 +282,7 @@ def train(hparams, model_type):
         plt.ylabel("Loss")
         plt.title(f"Training Loss, (min val_loss:{min(val_losses):.4f})")
         plt.savefig(os.path.join(hparams["save_dir"],"figure_train.png"))
-        plt.close()
-
+        plt.show()
 
 def test(hparams, model_type):
     model_params = hparams['model']
@@ -284,48 +302,52 @@ def test(hparams, model_type):
         print(f"Error occurred while loading model from {modelPath}")
         print(f"Error: {e}")
 
-    if model_type == "rnn":
-        input_dim = model_conf["input_dim"]
-        try:
-            hidden_dim1 = model_conf["nHidden1"]
-        except:
-            hidden_dim1 = model_conf["nHidden"]
-        output_dim = model_conf["output_dim"]
-        model = RNN(input_dim, hidden_dim1, output_dim)
-    elif model_type == "lstm":
-        input_dim = model_conf["input_dim"]
-        try:
-            hidden_dim1 = model_conf["nHidden1"]
-        except:
-            hidden_dim1 = model_conf["nHidden"]
-        output_dim = model_conf["output_dim"]
-        model = LSTM(input_dim, hidden_dim1, output_dim)
-    elif model_type == "lstm2lstm":
-        input_dim = model_conf["input_dim"]
-        hidden_dim1 = model_conf["nHidden1"]
-        hidden_dim2 = model_conf["nHidden2"]
-        output_dim = model_conf["output_dim"]
-        model = LSTMLSTM(input_dim, hidden_dim1, hidden_dim2, output_dim)
-    elif model_type == "lstm-cnn":
-        input_dim = model_conf["input_dim"]
-        hidden_dim1 = model_conf["nHidden1"]
-        hidden_dim2 = model_conf["nHidden2"]
-        output_dim = model_conf["output_dim"]
-        seqLeng = model_params["seqLeng"]
+    seqLeng = model_params["seqLeng"]
+    input_dim = model_params["input_dim"] # feature 7 + time 1
+    output_dim = model_params["output_dim"] 
+        
+    hidden_dim1 = model_params["nHidden1"] 
+    dropout1 = model_params["dropout1"] 
+    num_layers1 = model_params["num_layers1"] 
+        
+    hidden_dim2 = model_params["nHidden2"]         
+    dropout2 = model_params["dropout2"]
+    num_layers2 = model_params["num_layers2"]
+                        
+    activ = model_params["activ"] 
+    cnn_dropout = model_params["cnn_dropout"] 
+    kernel_size = model_params["kernel_size"]
+    padding = model_params["padding"]
+    stride = model_params["stride"] 
+    nb_filters = model_params["nb_filters"]
+    pooling = model_params["pooling"]     
+        
 
-        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
-        model.cuda()
-    elif model_type == "cnn-lstm":
-        input_dim = model_conf["input_dim"]
-        hidden_dim1 = model_conf["nHidden1"]
-        hidden_dim2 = model_conf["nHidden2"]
-        output_dim = model_conf["output_dim"]
-        seqLeng = model_params["seqLeng"]
+    model_classes = {
+        "lstm": LSTM,
+        "cnn": CNN,
+        "lstm-cnn": LSTMCNN,
+        "cnn-lstm": LSTMCNN,
+        "gru-cnn": GRUCNN,
+        "cnn-bigru1": CNNBiGRU1
+    }
 
-        model = LSTMCNN(input_dim, hidden_dim1, hidden_dim2,seqLeng, output_dim)
-        model.cuda()
-    elif model_type == "XGBoost-lstm":
-        pass
+    if model_type in ["lstm"]: # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
+    elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
+        model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
+
+    elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
+    elif model_type in ["cnn-bigru1"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
+    elif model_type in ["XGBoost-lstm"]:
+        pass # You can also add a print statement or action here as per your requirements
+    else:
+        print("The provided model type is not recognized.")
+        print("\nError: ", e, "\n")
+        sys.exit(1)
+        
     model.load_state_dict(paramSet)
     model.cuda()
     model.eval()
@@ -335,7 +357,7 @@ def test(hparams, model_type):
 
     seqLeng = model_params['seqLeng']
     nBatch  = learning_params['nBatch']
-    prev_data = torch.zeros([seqLeng, input_dim]).cuda()	# 14 is for featDim
+    prev_data = torch.zeros([seqLeng, input_dim]).cuda()	# 7 is for featDim
 
     criterion = torch.nn.MSELoss()
     total_loss = 0
@@ -354,7 +376,7 @@ def test(hparams, model_type):
         for j in range(nBatch):
             stridx = j*60
             endidx = j*60 + seqLeng
-            batch_data.append(x[stridx:endidx,:].view(1,seqLeng, nFeat))
+            batch_data.append(x[stridx:endidx,:].view(1, seqLeng, nFeat))
         batch_data = torch.cat(batch_data, dim=0)
 
         output = model(batch_data)
@@ -392,9 +414,7 @@ def test(hparams, model_type):
         plt.title(f'month {i+1}')
         plt.savefig(os.path.join(image_dir, f"month_{i+1}.png"))
         plt.close()
-
-
-
+        
 if __name__ == "__main__":
     hp = hyper_params()
     flags, hp = parse_flags(hp)
@@ -425,13 +445,12 @@ if __name__ == "__main__":
 
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)
-
+            
         train(hp, flags.model)
-        
-        # for test
-        hp.update({"load_path": flags.save_dir+"/best_model"})
+        hp.update({"load_path": os.path.join(flags.save_dir,"best_model")})
         hp.update({"loc_ID": flags.tst_loc_ID})
         test(hp, flags.model)
+                
     elif flags.mode == "test":
         hp.update({"load_path": flags.load_path})
         hp.update({"loc_ID": flags.tst_loc_ID})
