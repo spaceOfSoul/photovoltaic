@@ -28,7 +28,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 4,
+        "max_epoch": 3,
     }
 
     hparams = {
@@ -422,15 +422,15 @@ if __name__ == "__main__":
         hp.update({"val_solar_list": val_solar_list})
         hp.update({"save_dir": flags.save_dir})
         hp.update({"loc_ID": flags.loc_ID})
-        
-        # for test
-        hp.update({"load_path": flags.save_dir+"/best_model"})
-        hp.update({"loc_ID": flags.tst_loc_ID})
 
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)
 
         train(hp, flags.model)
+        
+        # for test
+        hp.update({"load_path": flags.save_dir+"/best_model"})
+        hp.update({"loc_ID": flags.tst_loc_ID})
         test(hp, flags.model)
     elif flags.mode == "test":
         hp.update({"load_path": flags.load_path})
