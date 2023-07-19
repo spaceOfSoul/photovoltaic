@@ -282,7 +282,6 @@ def train(hparams, model_type):
         plt.ylabel("Loss")
         plt.title(f"Training Loss, (min val_loss:{min(val_losses):.4f})")
         plt.savefig(os.path.join(hparams["save_dir"],"figure_train.png"))
-        plt.show()
 
 def test(hparams, model_type):
     model_params = hparams['model']
