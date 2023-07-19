@@ -12,7 +12,7 @@ from utility import list_up_solar, list_up_weather
 
 def hyper_params():
     # Default setting
-    nlayers = 4 # nlayers of CNN 
+    nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
         "seqLeng": 60,
@@ -20,9 +20,9 @@ def hyper_params():
         "output_dim": 1, 
         
         # LSTM of single model(LSTM), LSTM1 of hybrid model(LSTM1-LSTM2-CNN), GRU1 of hybrid model(GRU1-GRU2-CNN), BiGRU1 of hybrid model(CNN-BiGRU1)
-        "nHidden1": 64, 
+        "nHidden1": 128, 
         "dropout1": 0, 
-        "num_layers1": 1, # 2: BiGRU1 of hybrid model(CNN-BiGRU1)
+        "num_layers1": 2, # 2: BiGRU1 of hybrid model(CNN-BiGRU1)
         
         # LSTM2 of hybrid model(LSTM-CNN), GRU2 of hybrid model(GRU1-GRU2-CNN)
         "nHidden2": 128,         
@@ -30,19 +30,19 @@ def hyper_params():
         "num_layers2": 1,
                         
         # CNN
-        "activ": "relu", # leakyrelu, relu, glu, cg
-        "cnn_dropout": 0.5, 
+        "activ": "glu", # leakyrelu, relu, glu, cg
+        "cnn_dropout": 0, 
         "kernel_size": nlayers*[3],
         "padding": nlayers*[1],
         "stride": nlayers*[1], 
-        "nb_filters": [16, 32, 64, 128], # length of nb_filters should be equal to nlayers.
+        "nb_filters": [64, 128], # length of nb_filters should be equal to nlayers.
         "pooling": nlayers*[1],     
     }
 
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 3,
+        "max_epoch": 150,
     }
 
     hparams = {
@@ -269,6 +269,9 @@ def train(hparams, model_type):
             f"Epoch [{epoch+1}/{max_epoch}], Trn Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}"
         )
 
+    min_val_loss = min(val_losses)
+    min_val_loss_epoch = val_losses.index(min_val_loss)
+
     if hparams["save_losses"]:
         trn_loss = np.array(losses)
         val_loss = np.array(val_losses)
@@ -277,10 +280,13 @@ def train(hparams, model_type):
 
     if hparams["loss_plot_flag"]:
         plt.figure()
-        plt.plot(range(max_epoch), losses, "b", range(max_epoch), val_losses, "r")
+        plt.plot(range(max_epoch), np.log(losses), "b", label='Training Loss')
+        plt.plot(range(max_epoch), np.log(val_losses), "r", label='Validation Loss')
+        plt.scatter(min_val_loss_epoch, np.log(min_val_loss), color='k', label='Min Val Loss')
         plt.xlabel("Epochs")
-        plt.ylabel("Loss")
-        plt.title(f"Training Loss, (min val_loss:{min(val_losses):.4f})")
+        plt.ylabel("Log Loss")
+        plt.title(f"Training Loss (Log Scale), Min Val Loss: {min_val_loss:.4f} at Epoch {min_val_loss_epoch}")
+        plt.legend()
         plt.savefig(os.path.join(hparams["save_dir"],"figure_train.png"))
 
 def test(hparams, model_type):
