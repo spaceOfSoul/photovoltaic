@@ -176,12 +176,13 @@ def train(hparams, model_type):
         
 
     model_classes = {
+        "RNN" : RNN,
         "lstm": LSTM,
-        "cnn": CNN,
+        # "cnn": CNN,
         "lstm-cnn": LSTMCNN,
-        "cnn-lstm": LSTMCNN,
-        "gru-cnn": GRUCNN,
-        "cnn-bigru1": CNNBiGRU1
+        "cnn-lstm": CNNLSTM,
+        # "gru-cnn": GRUCNN,
+        # "cnn-bigru1": CNNBiGRU1
     }
 
     if model_type in ["lstm"]: # single model
@@ -330,11 +331,11 @@ def test(hparams, model_type):
 
     model_classes = {
         "lstm": LSTM,
-        "cnn": CNN,
+        # "cnn": CNN,
         "lstm-cnn": LSTMCNN,
-        "cnn-lstm": LSTMCNN,
-        "gru-cnn": GRUCNN,
-        "cnn-bigru1": CNNBiGRU1
+        "cnn-lstm": CNNLSTM,
+        # "gru-cnn": GRUCNN,
+        # "cnn-bigru1": CNNBiGRU1
     }
 
     if model_type in ["lstm"]: # single model
