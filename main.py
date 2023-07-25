@@ -8,7 +8,7 @@ import argparse
 from model import *
 from data_loader import WPD
 from torch.utils.data import DataLoader
-from utility import list_up_solar, list_up_weather
+from utility import list_up_solar, list_up_weather, print_parameters,count_parameters
 
 def hyper_params():
     # Default setting
@@ -42,7 +42,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 150,
+        "max_epoch": 3000,
     }
 
     hparams = {
@@ -185,19 +185,19 @@ def train(hparams, model_type):
         # "cnn-bigru1": CNNBiGRU1
     }
 
-    if model_type in ["lstm"]: # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
-    elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
-        model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
-    elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
-    elif model_type in ["cnn-bigru1"]: # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
-    elif model_type in ["XGBoost-lstm"]:
-        pass # You can also add a print statement or action here as per your requirements
+    if model_type in "lstm": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstm2lstm": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim)
+    elif model_type == "rnn": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstm-cnn": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    elif model_type in "cnn-lstm": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     else:
         pass
-        
+
     model.cuda()
 
     criterion = torch.nn.MSELoss()
@@ -338,20 +338,18 @@ def test(hparams, model_type):
         # "cnn-bigru1": CNNBiGRU1
     }
 
-    if model_type in ["lstm"]: # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
-    elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
-        model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
-
-    elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
-    elif model_type in ["cnn-bigru1"]: # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
-    elif model_type in ["XGBoost-lstm"]:
-        pass # You can also add a print statement or action here as per your requirements
+    if model_type in "lstm": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstm2lstm": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim)
+    elif model_type == "rnn": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstm-cnn": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    elif model_type in "cnn-lstm": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     else:
         print("The provided model type is not recognized.")
-        print("\nError: ", e, "\n")
         sys.exit(1)
         
     model.load_state_dict(paramSet)
@@ -395,8 +393,10 @@ def test(hparams, model_type):
         total_loss += loss.item()
         total_samples += x.size(0)
 
-    average_loss = total_loss
-    
+    average_loss = total_loss/total_samples
+    print(f'parameter count : {count_parameters(model)}')
+    print_parameters(model)
+
     print(f'Average Loss: {average_loss:.4f}')
 
     model_dir = os.path.dirname(modelPath)

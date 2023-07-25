@@ -74,3 +74,11 @@ def conv_output_size(input_size, kernel_size, stride):
 
 def pool_output_size(input_size, kernel_size, stride):
     return (input_size - kernel_size) // stride + 1
+
+# for print
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+def print_parameters(model):
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name, param.data)
