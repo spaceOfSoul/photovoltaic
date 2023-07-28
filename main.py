@@ -15,7 +15,7 @@ def hyper_params():
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 30,
+        "seqLeng": 60,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
@@ -66,7 +66,7 @@ def parse_flags(hparams):
        "--mode", type=str, choices=["train", "test"], required=True
     )
     all_modes_group.add_argument(
-       "--model", type=str, choices=["lstm", "cnn", "gru-cnn", "lstm-cnn", "cnn-lstm", "cnn-bigru1", "lstm2lstm"], required=True
+       "--model", type=str, choices=["lstm", "cnn", "lstm-cnn", "cnn-lstm","gru", "cnn-gru","gru-cnn","rnn"], required=True
     ) 
 
     # Flags for training only
@@ -176,11 +176,13 @@ def train(hparams, model_type):
         
 
     model_classes = {
-        "RNN" : RNN,
+        "rnn" : RNN,
         "lstm": LSTM,
         # "cnn": CNN,
         "lstm-cnn": LSTMCNN,
         "cnn-lstm": CNNLSTM,
+        "gru" : GRU,
+        "cnn-gru" : CNNGRU
         # "gru-cnn": GRUCNN,
         # "cnn-bigru1": CNNBiGRU1
     }
@@ -193,7 +195,11 @@ def train(hparams, model_type):
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     elif model_type == "lstm-cnn": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-    elif model_type in "cnn-lstm": # hybrid model
+    elif model_type == "cnn-lstm": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    elif model_type == "gru":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type in "cnn-gru": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     else:
         pass
@@ -334,7 +340,9 @@ def test(hparams, model_type):
         # "cnn": CNN,
         "lstm-cnn": LSTMCNN,
         "cnn-lstm": CNNLSTM,
-        "rnn":RNN
+        "rnn":RNN,
+        "gru":GRU,
+        "cnn-gru" : CNNGRU
         # "gru-cnn": GRUCNN,
         # "cnn-bigru1": CNNBiGRU1
     }
@@ -348,6 +356,10 @@ def test(hparams, model_type):
     elif model_type == "lstm-cnn": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     elif model_type in "cnn-lstm": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    elif model_type == "gru":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type in "cnn-gru": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     else:
         print("The provided model type is not recognized.")
