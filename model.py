@@ -238,12 +238,7 @@ class CNNLSTM(nn.Module):
 
         self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
         
-        conv1_output_size = conv_output_size(seq_len, kernel_size=3, stride=1)
-        pool1_output_size = pool_output_size(conv1_output_size, kernel_size=2, stride=2)
-        conv2_output_size = conv_output_size(pool1_output_size, kernel_size=3, stride=1)
-        pool2_output_size = pool_output_size(conv2_output_size, kernel_size=2, stride=2)
-
-        self.lstm1 = nn.LSTM(input_size=pool2_output_size, hidden_size=hidden_dim1, batch_first=True, dtype=torch.double)
+        self.lstm1 = nn.LSTM(input_size=128, hidden_size=hidden_dim1, batch_first=True, dtype=torch.double)
         self.lstm2 = nn.LSTM(input_size=hidden_dim1, hidden_size=hidden_dim2, batch_first=True, dtype=torch.double)
 
         self.fc1 = nn.Linear(hidden_dim2, 2048)

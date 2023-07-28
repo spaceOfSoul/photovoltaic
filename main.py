@@ -199,7 +199,7 @@ def train(hparams, model_type):
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     elif model_type == "gru":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type in "cnn-gru": # hybrid model
+    elif model_type == "cnn-gru": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     else:
         pass
@@ -355,11 +355,11 @@ def test(hparams, model_type):
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     elif model_type == "lstm-cnn": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-    elif model_type in "cnn-lstm": # hybrid model
+    elif model_type == "cnn-lstm": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     elif model_type == "gru":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type in "cnn-gru": # hybrid model
+    elif model_type == "cnn-gru": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     else:
         print("The provided model type is not recognized.")
@@ -402,9 +402,8 @@ def test(hparams, model_type):
 
         loss = criterion(output.squeeze(), y)
         
-        #total_loss += loss.item() * x.size(0)
-        total_loss += loss.item()
-        total_samples += x.size(0)
+        total_loss += loss.item() / x.size(0) 
+        total_samples += 1
 
     average_loss = total_loss/total_samples
     print(f'parameter count : {count_parameters(model)}')
