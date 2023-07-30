@@ -66,7 +66,7 @@ def parse_flags(hparams):
        "--mode", type=str, choices=["train", "test"], required=True
     )
     all_modes_group.add_argument(
-       "--model", type=str, choices=["lstm", "cnn", "lstm-cnn", "cnn-lstm","gru", "cnn-gru","gru-cnn","rnn"], required=True
+       "--model", type=str, choices=["lstm", "cnn", "lstm-cnn", "cnn-lstm","gru", "cnn-gru","gru-cnn","rnn", "lstm2lstm"], required=True
     ) 
 
     # Flags for training only
@@ -178,6 +178,7 @@ def train(hparams, model_type):
     model_classes = {
         "rnn" : RNN,
         "lstm": LSTM,
+        "lstm2lstm":LSTMLSTM,
         # "cnn": CNN,
         "lstm-cnn": LSTMCNN,
         "cnn-lstm": CNNLSTM,
@@ -338,6 +339,7 @@ def test(hparams, model_type):
     model_classes = {
         "lstm": LSTM,
         # "cnn": CNN,
+        "lstm2lstm":LSTMLSTM,
         "lstm-cnn": LSTMCNN,
         "cnn-lstm": CNNLSTM,
         "rnn":RNN,
@@ -402,7 +404,7 @@ def test(hparams, model_type):
 
         loss = criterion(output.squeeze(), y)
         
-        total_loss += loss.item() / x.size(0) 
+        total_loss += loss.item() 
         total_samples += 1
 
     average_loss = total_loss/total_samples
