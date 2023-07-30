@@ -5,11 +5,11 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 
 df = pd.read_csv('pv_f16.csv')  
 
-df['date'] = pd.to_datetime(df['date'])
+df['일시'] = pd.to_datetime(df['일시'])
 
 df.set_index('date', inplace=True)
 
-ac_tot = df['AC_TOT']
+ac_tot = df['누적발전량']
 
 ac_tot_hourly = ac_tot.resample('H').last() - ac_tot.resample('H').first()
 

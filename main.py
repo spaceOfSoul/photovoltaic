@@ -4,18 +4,30 @@ import os
 import sys
 import torch
 import argparse
+import time
+import logging
+import datetime
 
 from model import *
 from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather, print_parameters,count_parameters
 
+# Set up logging
+logging.basicConfig(filename='output.txt', level=logging.INFO, format='%(message)s')
+
+# Then replace 'print' with 'logging.info' in your code
+logging.info('This is a log message.\n')
+
+current_time = datetime.datetime.now()
+logging.info(f"Current time: {current_time}\n")
+
 def hyper_params():
     # Default setting
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 60,
+        "seqLeng": 30,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
@@ -42,7 +54,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 3000,
+        "max_epoch": 2,
     }
 
     hparams = {
@@ -66,7 +78,7 @@ def parse_flags(hparams):
        "--mode", type=str, choices=["train", "test"], required=True
     )
     all_modes_group.add_argument(
-       "--model", type=str, choices=["lstm", "cnn", "lstm-cnn", "cnn-lstm","gru", "cnn-gru","gru-cnn","rnn", "lstm2lstm"], required=True
+       "--model", type=str, choices=["lstm", "cnn", "gru-cnn", "lstm-cnn", "cnn-lstm", "cnn-bigru1", "lstm2lstm", "conformer"], required=True
     ) 
 
     # Flags for training only
@@ -129,7 +141,7 @@ def parse_flags(hparams):
         parser.print_help()
         sys.exit(1)
 
-    return flags, hparams
+    return flags, hparams, flags.model
 
 
 def train(hparams, model_type):
@@ -176,32 +188,25 @@ def train(hparams, model_type):
         
 
     model_classes = {
-        "rnn" : RNN,
         "lstm": LSTM,
-        "lstm2lstm":LSTMLSTM,
-        # "cnn": CNN,
+        "cnn": CNN,
         "lstm-cnn": LSTMCNN,
-        "cnn-lstm": CNNLSTM,
-        "gru" : GRU,
-        "cnn-gru" : CNNGRU
-        # "gru-cnn": GRUCNN,
-        # "cnn-bigru1": CNNBiGRU1
+        "cnn-lstm": LSTMCNN,
+        "gru-cnn": GRUCNN,
+        "cnn-bigru1": CNNBiGRU1,
+        "conformer": Conformer
     }
-
-    if model_type in "lstm": # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "lstm2lstm": # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim)
-    elif model_type == "rnn": # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "lstm-cnn": # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-    elif model_type == "cnn-lstm": # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-    elif model_type == "gru":
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "cnn-gru": # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    
+    if model_type in ["lstm"]: # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
+    elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
+        model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
+    elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
+    elif model_type in ["cnn-bigru1"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
+    elif model_type in ["conformer"]:
+        model = model_classes[model_type](input_dim, output_dim)
     else:
         pass
 
@@ -218,6 +223,7 @@ def train(hparams, model_type):
     val_losses = []
 
     prev_loss = np.inf
+    train_start = time.time()
     for epoch in range(max_epoch):
         model.train()
         loss = 0
@@ -273,9 +279,10 @@ def train(hparams, model_type):
 
         losses.append(loss.item())
         val_losses.append(val_loss.item())
-        print(
-            f"Epoch [{epoch+1}/{max_epoch}], Trn Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}"
-        )
+        logging.info(f"Epoch [{epoch+1}/{max_epoch}], Trn Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}")
+    train_end = time.time()
+    logging.info("\n")
+    logging.info(f'Training time [sec]: {(train_end - train_start):.2f}')
 
     min_val_loss = min(val_losses)
     min_val_loss_epoch = val_losses.index(min_val_loss)
@@ -288,15 +295,15 @@ def train(hparams, model_type):
 
     if hparams["loss_plot_flag"]:
         plt.figure()
-        plt.plot(range(max_epoch), np.log(losses), "b", label='Training Loss')
-        plt.plot(range(max_epoch), np.log(val_losses), "r", label='Validation Loss')
-        plt.scatter(min_val_loss_epoch, np.log(min_val_loss), color='k', label='Min Val Loss')
+        plt.plot(range(max_epoch), np.array(losses), "b", label='Training Loss')
+        plt.plot(range(max_epoch), np.array(val_losses), "r", label='Validation Loss')
+        plt.scatter(min_val_loss_epoch, min_val_loss, color='k', label='Minimun Validation Loss')
         plt.xlabel("Epochs")
-        plt.ylabel("Log Loss")
-        plt.title(f"Training Loss (Log Scale), Min Val Loss: {min_val_loss:.4f} at Epoch {min_val_loss_epoch}")
+        plt.ylabel("Loss")
+        plt.title(f"Training Loss, Min Val Loss: {min_val_loss:.4f} at Epoch {min_val_loss_epoch}")
         plt.legend()
         plt.savefig(os.path.join(hparams["save_dir"],"figure_train.png"))
-
+        logging.info(f"minimum validation loss: {min_val_loss:.4f} at Epoch {min_val_loss_epoch}")
 def test(hparams, model_type):
     model_params = hparams['model']
     learning_params = hparams['learning']
@@ -338,31 +345,25 @@ def test(hparams, model_type):
 
     model_classes = {
         "lstm": LSTM,
-        # "cnn": CNN,
-        "lstm2lstm":LSTMLSTM,
+        "cnn": CNN,
         "lstm-cnn": LSTMCNN,
-        "cnn-lstm": CNNLSTM,
-        "rnn":RNN,
-        "gru":GRU,
-        "cnn-gru" : CNNGRU
-        # "gru-cnn": GRUCNN,
-        # "cnn-bigru1": CNNBiGRU1
+        "cnn-lstm": LSTMCNN,
+        "gru-cnn": GRUCNN,
+        "cnn-bigru1": CNNBiGRU1,
+        "conformer": Conformer
     }
 
-    if model_type in "lstm": # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "lstm2lstm": # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim)
-    elif model_type == "rnn": # single model
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "lstm-cnn": # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-    elif model_type == "cnn-lstm": # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
-    elif model_type == "gru":
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "cnn-gru": # hybrid model
-        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    if model_type in ["lstm"]: # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
+    elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
+        model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
+
+    elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
+    elif model_type in ["cnn-bigru1"]: # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
+    elif model_type in ["conformer"]:
+        model = model_classes[model_type](input_dim, output_dim)
     else:
         print("The provided model type is not recognized.")
         sys.exit(1)
@@ -384,6 +385,7 @@ def test(hparams, model_type):
     total_samples = 0
     result = []
     y_true=[]
+    test_start = time.time()
     for i, (x, y) in enumerate(tstloader):
         x = x.squeeze().cuda()
         x = torch.cat((prev_data, x), axis=0)
@@ -404,15 +406,17 @@ def test(hparams, model_type):
 
         loss = criterion(output.squeeze(), y)
         
-        total_loss += loss.item() 
+        total_loss += loss.item() / x.size(0) 
         total_samples += 1
+    test_end = time.time()
 
     average_loss = total_loss/total_samples
-    print(f'parameter count : {count_parameters(model)}')
-    print_parameters(model)
-
-    print(f'Average Loss: {average_loss:.4f}')
-
+    # print_parameters(model) # print params infomation
+    logging.info("\n--------------------Test Mode--------------------")
+    logging.info(f'Average Loss: {average_loss:.4f}')
+    logging.info(f'The number of parpameter in model : {count_parameters(model)}')
+    logging.info(f'Testing time [sec]: {(test_end - test_start):.2f}')
+    
     model_dir = os.path.dirname(modelPath)
     
     if hparams['save_result']:
@@ -436,22 +440,30 @@ def test(hparams, model_type):
         plt.close()
         
 if __name__ == "__main__":
-    hp = hyper_params()
-    flags, hp = parse_flags(hp)
 
+    hp = hyper_params()
+    flags, hp, model_name = parse_flags(hp)
+
+    # Log hyperparameters and model name
+    logging.info('--------------------Hyperparameters--------------------\n')
+    for key, value in hp.items():
+        logging.info(f"{key}: {value}\n")
+    logging.info(f"Model name: {model_name}\n")
+    
     if flags.mode == "train":
+        logging.info("\n--------------------Training Mode (Training and Validating)--------------------")
         # =============================== training data list ====================================#
         # build photovoltaic data list
         solar_list, first_date, last_date = list_up_solar(flags.solar_dir)
         aws_list = list_up_weather(flags.aws_dir, first_date, last_date)
         asos_list = list_up_weather(flags.asos_dir, first_date, last_date)
-        print("Training on the interval from %s to %s." % (first_date, last_date))
+        logging.info(f"Training on the interval from {first_date} to {last_date}.")
         # =============================== validation data list ===================================#
         # build photovoltaic data list
         val_solar_list, first_date, last_date = list_up_solar(flags.val_solar_dir)
         val_aws_list = list_up_weather(flags.val_aws_dir, first_date, last_date)
         val_asos_list = list_up_weather(flags.val_asos_dir, first_date, last_date)
-        print("Validating on the interval from %s to %s." % (first_date, last_date))
+        logging.info(f"Validating on the interval from {first_date} to {last_date}.\n")
         # ========================================================================================#
 
         hp.update({"aws_list": aws_list})
@@ -465,13 +477,14 @@ if __name__ == "__main__":
 
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)
-            
+
         train(hp, flags.model)
         hp.update({"load_path": os.path.join(flags.save_dir,"best_model")})
         hp.update({"loc_ID": flags.tst_loc_ID})
         test(hp, flags.model)
 
     elif flags.mode == "test":
+        logging.info("\n--------------------Test Mode--------------------")
         hp.update({"load_path": flags.load_path})
         hp.update({"loc_ID": flags.tst_loc_ID})
 
