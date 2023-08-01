@@ -7,13 +7,13 @@ from torchaudio.models import Conformer as ConformerModule
 # single pred model(LSTM, CNN, Conformer)
 
 class LSTM(nn.Module):
-
+    
     def __init__(self, input_dim, hidden_dim, output_dim, dropout1=0, num_layers1=1):
         super(LSTM, self).__init__()
         
-        self.lstm = LSTMModule(input_dim=input_dim, hidden_dim=hidden_dim, dropout=dropout1, num_layers=num_layers1).double()
+        self.lstm = LSTMModule(input_dim=input_dim, hidden_dim=hidden_dim, dropout=dropout1, num_layers=num_layers1)
         self.softmax = nn.Softmax(dim=-1)
-        self.dense = nn.Linear(hidden_dim, output_dim).double()
+        self.dense = nn.Linear(hidden_dim, output_dim)
 
     def load_state_dict(self, state_dict, strict=True):
         self.lstm.load_state_dict(state_dict["lstm"])
@@ -28,8 +28,8 @@ class LSTM(nn.Module):
         parameters = {'lstm': self.lstm.state_dict(), 'dense': self.dense.state_dict()}
         torch.save(parameters, filename)
 
-    def forward(self, x):
-        x = x.double() # [nBatch, segLeng, input_dim]
+
+    def forward(self, x): # [nBatch, segLeng, input_dim]
         recurrent = self.lstm(x) # [nBatch, segLeng, nHidden1]
         # recurrent = recurrent[:, -1, :] # [nBatch, nHidden1] 
 
@@ -48,10 +48,10 @@ class CNN(nn.Module):
                  pooling=2*[1], output_dim=1):
         super(CNN, self).__init__()
                 
-        self.cnn = CNNModule(n_in_channel=n_in_channel, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling).double()
-        self.dense = nn.Linear(nb_filters[-1], output_dim).double()
+        self.cnn = CNNModule(n_in_channel=n_in_channel, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling)
+        self.dense = nn.Linear(nb_filters[-1], output_dim)
         self.softmax = nn.Softmax(dim=-1)
-        
+
     def load_state_dict(self, state_dict, strict=True):
         self.cnn.load_state_dict(state_dict["cnn"])
         self.dense.load_state_dict(state_dict["dense"])
@@ -65,8 +65,7 @@ class CNN(nn.Module):
         parameters = {'cnn': self.cnn.state_dict(), 'dense': self.dense.state_dict()}
         torch.save(parameters, filename)
 
-    def forward(self, x):
-        x = x.double() # [nBatch, segLeng, input_dim]    
+    def forward(self, x): # [nBatch, segLeng, input_dim]    
         x = x.permute(0, 2, 1) # [nBatch, input_dim, segLeng]
         out = self.cnn(x) # [nBatch, nb_filters[-1], segLeng]
         
@@ -136,11 +135,11 @@ class LSTMCNN(nn.Module):
                  pooling=2*[1]):
         super(LSTMCNN, self).__init__()
         
-        self.lstm1 = LSTMModule(input_dim=input_dim, hidden_dim=hidden_dim1, dropout=dropout1, num_layers=num_layers1).double()    
-        self.lstm2 = LSTMModule(input_dim=hidden_dim1, hidden_dim=hidden_dim2, dropout=dropout2, num_layers=num_layers2).double()        
-        self.cnn = CNNModule(n_in_channel=hidden_dim2, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling).double()
+        self.lstm1 = LSTMModule(input_dim=input_dim, hidden_dim=hidden_dim1, dropout=dropout1, num_layers=num_layers1)    
+        self.lstm2 = LSTMModule(input_dim=hidden_dim1, hidden_dim=hidden_dim2, dropout=dropout2, num_layers=num_layers2)      
+        self.cnn = CNNModule(n_in_channel=hidden_dim2, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling)
         self.softmax = nn.Softmax(dim=-1)        
-        self.dense = nn.Linear(nb_filters[-1], output_dim).double()
+        self.dense = nn.Linear(nb_filters[-1], output_dim)
 
     def load_lstm(self, state_dict):
         self.lstm1.load_state_dict(state_dict)
@@ -162,9 +161,8 @@ class LSTMCNN(nn.Module):
     def save(self, filename):
         parameters = {'lstm1': self.lstm1.state_dict(), 'lstm2': self.lstm2.state_dict(), 'cnn': self.cnn.state_dict(), 'dense': self.dense.state_dict()}
         torch.save(parameters, filename)
-                
-    def forward(self, x):
-        x = x.double() # [nBatch, segLeng, input_dim]
+                        
+    def forward(self, x): # [nBatch, segLeng, input_dim]
         recurrent = self.lstm1(x) # [nBatch, segLeng, nHidden1]
         recurrent = self.lstm2(recurrent) # [nBatch, segLeng, nHidden2]
         recurrent = recurrent.permute(0, 2, 1) # [nBatch, nHidden2, segLeng]        
@@ -178,6 +176,7 @@ class LSTMCNN(nn.Module):
                
         out = self.dense(out) # [nBatch, output_dim]
         return out
+
         
 class GRUCNN(nn.Module):
     def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1=0, dropout2=0, num_layers1=1, num_layers2=1, activ="Relu", cnn_dropout=0,
@@ -185,11 +184,12 @@ class GRUCNN(nn.Module):
                  pooling=2*[1]):
         super(GRUCNN, self).__init__()
         
-        self.gru1 = GRUModule(input_dim=input_dim, hidden_dim=hidden_dim1, dropout=dropout1, num_layers=num_layers1).double()    
-        self.gru2 = GRUModule(input_dim=hidden_dim1, hidden_dim=hidden_dim2, dropout=dropout2, num_layers=num_layers2).double()         
-        self.cnn = CNNModule(n_in_channel=hidden_dim2, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling).double()
+        self.gru1 = GRUModule(input_dim=input_dim, hidden_dim=hidden_dim1, dropout=dropout1, num_layers=num_layers1)    
+        self.gru2 = GRUModule(input_dim=hidden_dim1, hidden_dim=hidden_dim2, dropout=dropout2, num_layers=num_layers2)         
+        self.cnn = CNNModule(n_in_channel=hidden_dim2, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling)
         self.softmax = nn.Softmax(dim=-1)        
-        self.dense = nn.Linear(nb_filters[-1], output_dim).double()
+        self.dense = nn.Linear(nb_filters[-1], output_dim)
+
 
     def load_gru(self, state_dict):
         self.gru1.load_state_dict(state_dict)
@@ -213,7 +213,7 @@ class GRUCNN(nn.Module):
         torch.save(parameters, filename)
                 
     def forward(self, x):
-        x = x.double() # [nBatch, segLeng, input_dim]
+        x = x.float() # [nBatch, segLeng, input_dim]
         recurrent = self.gru1(x) # [nBatch, segLeng, nHidden1]
         recurrent = self.gru2(recurrent) # [nBatch, segLeng, nHidden2]
         recurrent = recurrent.permute(0, 2, 1) # [nBatch, nHidden2, segLeng]        
@@ -234,12 +234,12 @@ class CNNBiGRU1(nn.Module): # same as DCASE2020 CRNN
                  pooling=4*[1]):
         super(CNNBiGRU1, self).__init__()
 
-        self.cnn = CNNModule(n_in_channel=input_dim, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling).double()
+        self.cnn = CNNModule(n_in_channel=input_dim, activ=activ, cnn_dropout=cnn_dropout, kernel_size=kernel_size, padding=padding, stride=stride, nb_filters=nb_filters, pooling=pooling)
                 
-        self.bigru1 = BiGRUModule(input_dim=nb_filters[-1], hidden_dim=hidden_dim1, dropout=dropout1, num_layers=num_layers1).double()           
+        self.bigru1 = BiGRUModule(input_dim=nb_filters[-1], hidden_dim=hidden_dim1, dropout=dropout1, num_layers=num_layers1)         
 
         self.softmax = nn.Softmax(dim=-1)        
-        self.dense = nn.Linear(hidden_dim1*2, output_dim).double()
+        self.dense = nn.Linear(hidden_dim1*2, output_dim)
 
     def load_cnn(self, state_dict):
         self.cnn.load_state_dict(state_dict)
@@ -260,7 +260,6 @@ class CNNBiGRU1(nn.Module): # same as DCASE2020 CRNN
         torch.save(parameters, filename)
                 
     def forward(self, x):
-        x = x.double() # [nBatch, segLeng, input_dim]    
         x = x.permute(0, 2, 1) # [nBatch, input_dim, segLeng]
         x = self.cnn(x) # [nBatch, nb_filters[-1], segLeng]
         x = x.permute(0, 2, 1) # [nBatch, segLeng, nb_filters[-1]]        
@@ -273,3 +272,5 @@ class CNNBiGRU1(nn.Module): # same as DCASE2020 CRNN
                
         out = self.dense(out) # [nBatch, output_dim]
         return out
+
+

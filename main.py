@@ -13,21 +13,12 @@ from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather, print_parameters,count_parameters
 
-# Set up logging
-logging.basicConfig(filename='output.txt', level=logging.INFO, format='%(message)s')
-
-# Then replace 'print' with 'logging.info' in your code
-logging.info('This is a log message.\n')
-
-current_time = datetime.datetime.now()
-logging.info(f"Current time: {current_time}\n")
-
 def hyper_params():
     # Default setting
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 30,
+        "seqLeng": 60,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
@@ -54,7 +45,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 2,
+        "max_epoch": 3000,
     }
 
     hparams = {
@@ -71,6 +62,7 @@ def hyper_params():
 
 def parse_flags(hparams):
     parser = argparse.ArgumentParser(description="Photovoltaic estimation")
+    parser.add_argument("--log_filename", type=str, default="output.txt")
 
     # Flags common to all modes
     all_modes_group = parser.add_argument_group("Flags common to all modes")
@@ -229,6 +221,8 @@ def train(hparams, model_type):
         loss = 0
         prev_data = torch.zeros([seqLeng, input_dim]).cuda()
         for i, (x, y) in enumerate(trnloader):
+            x = x.float()
+            y = y.float()
             x = x.squeeze().cuda()
             x = torch.cat((prev_data, x), axis=0)
             prev_data = x[-seqLeng:, :]
@@ -255,6 +249,8 @@ def train(hparams, model_type):
         val_loss = 0
         prev_data = torch.zeros([seqLeng, input_dim]).cuda()
         for i, (x, y) in enumerate(valloader):
+            x = x.float()
+            y = y.float()
             x = x.squeeze().cuda()
             x = torch.cat((prev_data, x), axis=0).cuda()
             prev_data = x[-seqLeng:, :]
@@ -382,11 +378,13 @@ def test(hparams, model_type):
     criterion = torch.nn.MSELoss()
     total_loss = 0
     total_mape = 0
-    total_samples = 0
+    total_samples = 24*243
     result = []
     y_true=[]
     test_start = time.time()
     for i, (x, y) in enumerate(tstloader):
+        x = x.float()
+        y = y.float()
         x = x.squeeze().cuda()
         x = torch.cat((prev_data, x), axis=0)
         prev_data = x[-seqLeng:,:]
@@ -406,8 +404,7 @@ def test(hparams, model_type):
 
         loss = criterion(output.squeeze(), y)
         
-        total_loss += loss.item() / x.size(0) 
-        total_samples += 1
+        total_loss += loss.item()
     test_end = time.time()
 
     average_loss = total_loss/total_samples
@@ -444,6 +441,18 @@ if __name__ == "__main__":
     hp = hyper_params()
     flags, hp, model_name = parse_flags(hp)
 
+    if not os.path.isdir(flags.save_dir):
+        os.makedirs(flags.save_dir)
+    # Set up logging
+    log_filename = os.path.join(flags.save_dir, flags.log_filename)
+    logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(message)s')
+
+    # Then replace 'print' with 'logging.info' in your code
+    logging.info('This is a log message.\n')
+
+    current_time = datetime.datetime.now()
+    logging.info(f"Current time: {current_time}\n")
+
     # Log hyperparameters and model name
     logging.info('--------------------Hyperparameters--------------------\n')
     for key, value in hp.items():
@@ -479,12 +488,23 @@ if __name__ == "__main__":
             os.makedirs(flags.save_dir)
 
         train(hp, flags.model)
+
+
         hp.update({"load_path": os.path.join(flags.save_dir,"best_model")})
         hp.update({"loc_ID": flags.tst_loc_ID})
+
+        solar_list, first_date, last_date = list_up_solar(flags.tst_solar_dir)
+        aws_list = list_up_weather(flags.tst_aws_dir, first_date, last_date)
+        asos_list = list_up_weather(flags.tst_asos_dir, first_date, last_date)
+
+        hp.update({"aws_list": aws_list})
+        hp.update({"asos_list": asos_list})
+        hp.update({"solar_list": solar_list})
+
         test(hp, flags.model)
 
     elif flags.mode == "test":
-        logging.info("\n--------------------Test Mode--------------------")
+        #logging.info("\n--------------------Test Mode--------------------")
         hp.update({"load_path": flags.load_path})
         hp.update({"loc_ID": flags.tst_loc_ID})
 
