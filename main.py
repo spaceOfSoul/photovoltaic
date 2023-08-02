@@ -13,6 +13,21 @@ from data_loader import WPD
 from torch.utils.data import DataLoader
 from utility import list_up_solar, list_up_weather, print_parameters,count_parameters
 
+model_classes = {
+        "lstm": LSTM, #o
+        "cnn": CNN,#o
+        "lstm-cnn": LSTMCNN,#o
+        #"cnn-lstm": LSTMCNN,
+        "gru-cnn": GRUCNN,#o
+        "cnn-bigru1": CNNBiGRU1,#o
+        "conformer": Conformer,
+        "lstm-basic":BASIC_LSTM,#o
+        "lstm2-basic":BASIC_LSTM2,#o
+        "lstmcnn-basic":BASIC_LSTMCNN,#o
+        "gru":GRU,#o
+        "rnn":BASIC_RNN#o
+    }
+
 def hyper_params():
     # Default setting
     nlayers = 2 # nlayers of CNN 
@@ -23,12 +38,12 @@ def hyper_params():
         "output_dim": 1, 
         
         # LSTM of single model(LSTM), LSTM1 of hybrid model(LSTM1-LSTM2-CNN), GRU1 of hybrid model(GRU1-GRU2-CNN), BiGRU1 of hybrid model(CNN-BiGRU1)
-        "nHidden1": 64, 
+        "nHidden1": 256, 
         "dropout1": 0, 
         "num_layers1": 2, # 2: BiGRU1 of hybrid model(CNN-BiGRU1)
         
         # LSTM2 of hybrid model(LSTM-CNN), GRU2 of hybrid model(GRU1-GRU2-CNN)
-        "nHidden2": 128,         
+        "nHidden2": 256,         
         "dropout2": 0,
         "num_layers2": 1,
                         
@@ -70,7 +85,7 @@ def parse_flags(hparams):
        "--mode", type=str, choices=["train", "test"], required=True
     )
     all_modes_group.add_argument(
-       "--model", type=str, choices=["lstm", "cnn", "gru-cnn", "lstm-cnn", "cnn-lstm", "cnn-bigru1", "lstm2lstm", "conformer"], required=True
+       "--model", type=str, choices=list(model_classes.keys()), required=True
     ) 
 
     # Flags for training only
@@ -176,18 +191,7 @@ def train(hparams, model_type):
     padding = model_params["padding"]
     stride = model_params["stride"] 
     nb_filters = model_params["nb_filters"]
-    pooling = model_params["pooling"]     
-        
-
-    model_classes = {
-        "lstm": LSTM,
-        "cnn": CNN,
-        "lstm-cnn": LSTMCNN,
-        "cnn-lstm": LSTMCNN,
-        "gru-cnn": GRUCNN,
-        "cnn-bigru1": CNNBiGRU1,
-        "conformer": Conformer
-    }
+    pooling = model_params["pooling"]
     
     if model_type in ["lstm"]: # single model
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
@@ -199,8 +203,21 @@ def train(hparams, model_type):
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
     elif model_type in ["conformer"]:
         model = model_classes[model_type](input_dim, output_dim)
+    # Up : chg
+    # Down : mine
+    elif model_type == "lstm-basic": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstm2-basic": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim)
+    elif model_type == "rnn": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstmcnn-basic": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    elif model_type == "gru":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     else:
-        pass
+        print("The provided model type is not recognized.")
+        sys.exit(1)
 
     model.cuda()
 
@@ -300,6 +317,7 @@ def train(hparams, model_type):
         plt.legend()
         plt.savefig(os.path.join(hparams["save_dir"],"figure_train.png"))
         logging.info(f"minimum validation loss: {min_val_loss:.4f} at Epoch {min_val_loss_epoch}")
+
 def test(hparams, model_type):
     model_params = hparams['model']
     learning_params = hparams['learning']
@@ -337,29 +355,30 @@ def test(hparams, model_type):
     stride = model_params["stride"] 
     nb_filters = model_params["nb_filters"]
     pooling = model_params["pooling"]     
-        
-
-    model_classes = {
-        "lstm": LSTM,
-        "cnn": CNN,
-        "lstm-cnn": LSTMCNN,
-        "cnn-lstm": LSTMCNN,
-        "gru-cnn": GRUCNN,
-        "cnn-bigru1": CNNBiGRU1,
-        "conformer": Conformer
-    }
 
     if model_type in ["lstm"]: # single model
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
     elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
         model = model_classes[model_type](input_dim, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling, output_dim) 
-
     elif model_type in ["gru-cnn", "lstm-cnn", "cnn-lstm"]: # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim, dropout1, dropout2, num_layers1, num_layers2, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling)
     elif model_type in ["cnn-bigru1"]: # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1, activ, cnn_dropout, kernel_size, padding, stride, nb_filters, pooling) 
     elif model_type in ["conformer"]:
         model = model_classes[model_type](input_dim, output_dim)
+    # Up : chg
+    # Down : mine
+    # I cant explane model made by chg
+    elif model_type == "lstm-basic": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstm2-basic": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, output_dim)
+    elif model_type == "rnn": # single model
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "lstmcnn-basic": # hybrid model
+        model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
+    elif model_type == "gru":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     else:
         print("The provided model type is not recognized.")
         sys.exit(1)
