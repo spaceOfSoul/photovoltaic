@@ -11,7 +11,10 @@ import datetime
 from model import *
 from data_loader import WPD
 from torch.utils.data import DataLoader
+
 from utility import list_up_solar, list_up_weather, print_parameters,count_parameters
+from plot_generate import PlotGenerator
+from LossDistribution import LossStatistics
 
 model_classes = {
         "lstm": LSTM, #o
@@ -443,8 +446,22 @@ def test(hparams, model_type):
     os.makedirs(image_dir, exist_ok=True)
     chunks = len(y_true) // 12
 
-    y_true_chunks = [y_true[i:i+chunks] for i in range(0, len(y_true), chunks)]
-    result_chunks = [result[i:i+chunks] for i in range(0, len(result), chunks)]
+    monthly_lengths = [31, 28, 31, 30, 31, 30, 31, 31]  # The number of days in each month from 2022.January to August
+
+    y_true_chunks = []
+    result_chunks = []
+
+    start_index = 0
+    for month_length in monthly_lengths:
+        end_index = start_index + month_length
+        y_true_chunks.append(y_true[start_index:end_index])
+        result_chunks.append(result[start_index:end_index])
+        start_index = end_index
+
+    plot_generator = PlotGenerator(image_dir)
+
+    plot_generator.plot_monthly(y_true_chunks, result_chunks)
+    plot_generator.plot_annual(y_true, result)
 
     for i in range(12):
         plt.figure(figsize=(10, 5))
@@ -460,25 +477,25 @@ if __name__ == "__main__":
     hp = hyper_params()
     flags, hp, model_name = parse_flags(hp)
 
-    if not os.path.isdir(flags.save_dir):
-        os.makedirs(flags.save_dir)
-    # Set up logging
-    log_filename = os.path.join(flags.save_dir, flags.log_filename)
-    logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(message)s')
-
-    # Then replace 'print' with 'logging.info' in your code
-    logging.info('This is a log message.\n')
-
-    current_time = datetime.datetime.now()
-    logging.info(f"Current time: {current_time}\n")
-
-    # Log hyperparameters and model name
-    logging.info('--------------------Hyperparameters--------------------\n')
-    for key, value in hp.items():
-        logging.info(f"{key}: {value}\n")
-    logging.info(f"Model name: {model_name}\n")
     
     if flags.mode == "train":
+        if not os.path.isdir(flags.save_dir):
+            os.makedirs(flags.save_dir)
+        # Set up logging
+        log_filename = os.path.join(flags.save_dir, flags.log_filename)
+        logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(message)s')
+
+        # Then replace 'print' with 'logging.info' in your code
+        logging.info('This is a log message.\n')
+
+        current_time = datetime.datetime.now()
+        logging.info(f"Current time: {current_time}\n")
+
+        # Log hyperparameters and model name
+        logging.info('--------------------Hyperparameters--------------------\n')
+        for key, value in hp.items():
+            logging.info(f"{key}: {value}\n")
+        logging.info(f"Model name: {model_name}\n")
         logging.info("\n--------------------Training Mode (Training and Validating)--------------------")
         # =============================== training data list ====================================#
         # build photovoltaic data list
@@ -508,7 +525,6 @@ if __name__ == "__main__":
 
         train(hp, flags.model)
 
-
         hp.update({"load_path": os.path.join(flags.save_dir,"best_model")})
         hp.update({"loc_ID": flags.tst_loc_ID})
 
@@ -523,6 +539,19 @@ if __name__ == "__main__":
         test(hp, flags.model)
 
     elif flags.mode == "test":
+        model_dir = os.path.dirname(flags.load_path)
+        log_filename = os.path.join(model_dir, flags.log_filename)
+        logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(message)s')
+    
+        # Then replace 'print' with 'logging.info' in your code
+        logging.info('This is a log message.\n')
+    
+        current_time = datetime.datetime.now()
+        logging.info(f"Current time: {current_time}\n")
+    
+        # Log hyperparameters and model name
+        logging.info('--------------------Hyperparameters--------------------\n')
+        logging.info(f"Model name: {model_name}\n")
         #logging.info("\n--------------------Test Mode--------------------")
         hp.update({"load_path": flags.load_path})
         hp.update({"loc_ID": flags.tst_loc_ID})

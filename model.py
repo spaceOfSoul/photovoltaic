@@ -423,7 +423,9 @@ class BASIC_LSTMCNN(nn.Module):
         pool1_output_size = pool_output_size(conv1_output_size, kernel_size=2, stride=2)
         conv2_output_size = conv_output_size(pool1_output_size, kernel_size=3, stride=1)
         pool2_output_size = pool_output_size(conv2_output_size, kernel_size=2, stride=2)
-        fc1_input_dim = hidden_dim2 * pool2_output_size // 2
+        fc1_input_dim = hidden_dim2 * pool2_output_size # 128
+        #fc1_input_dim = hidden_dim2 * pool2_output_size // 2 # 256
+        #fc1_input_dim = hidden_dim2 * pool2_output_size //4 # 512
 
         self.fc1 = nn.Linear(fc1_input_dim, 2048)
         self.fc2 = nn.Linear(2048, output_dim)
