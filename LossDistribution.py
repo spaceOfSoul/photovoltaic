@@ -26,16 +26,16 @@ class LossStatistics:
 
         # Training loss
         axes[0].hist(self.losses, bins='auto', color='blue', alpha=0.7, rwidth=0.85)
-        axes[0].set_title('Training Loss Distribution')
-        axes[0].set_xlabel('Loss [kWh]')
+        axes[0].set_title('Training Loss Distribution(MSE) [per day]')
+        axes[0].set_xlabel('Loss')
         axes[0].set_ylabel('frequency')
         stat_text = 'mean: {:.2f}\nVar: {:.2f}'.format(losses_mean, losses_var)
         axes[0].text(0.95, 0.95, stat_text, transform=axes[0].transAxes, ha='right', va='top', fontsize=10)
         
         # Validation loss
         axes[1].hist(self.val_losses, bins='auto', color='red', alpha=0.7, rwidth=0.85)
-        axes[1].set_title('Validation Loss Distribution')
-        axes[1].set_xlabel('Loss [kWh]')
+        axes[1].set_title('Validation Loss Distribution(MSE) [per day]')
+        axes[1].set_xlabel('Loss')
         axes[1].set_ylabel('frequency')
         stat_text = 'mean: {:.2f}\nVar: {:.2f}'.format(val_losses_mean, val_losses_var)
         axes[1].text(0.95, 0.95, stat_text, transform=axes[1].transAxes, ha='right', va='top', fontsize=10)
