@@ -471,13 +471,54 @@ def test(hparams, model_type):
         plt.title(f'month {i+1}')
         plt.savefig(os.path.join(image_dir, f"month_{i+1}.png"))
         plt.close()
+
+def loss_with_npy_file(hparams, path_to_predicted_npy_file):
+    tstset  = WPD(hparams['tst_aws_dir'], hparams['tst_asos_dir'], hparams['tst_solar_dir'], hparams['tst_loc_ID'])    
+    tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
+    seqLeng = hparams['model']['seqLeng']
+    nBatch  = hparams['learning']['nBatch']
+    prev_data = torch.zeros([seqLeng, hparams['model']['input_dim']]).cuda()	# 7 is for featDim
+
+    criterion = torch.nn.MSELoss()
+    total_loss = 0
+    total_samples = len(tstloader) # Assumes each batch has one sample
+
+    # Load the predicted data from npy file
+    predicted_output_from_npy = np.load(path_to_predicted_npy_file)
+
+    for i, (x, y) in enumerate(tstloader):
+        x = x.float()
+        y = y.float()
+        x = x.squeeze().cuda()
+        x = torch.cat((prev_data, x), axis=0)
+        prev_data = x[-seqLeng:,:]
+        y = y.squeeze().cuda()
+
+        nLeng, nFeat = x.shape
+        batch_data = []
+        for j in range(nBatch):
+            stridx = j*60
+            endidx = j*60 + seqLeng
+            batch_data.append(x[stridx:endidx,:].view(1, seqLeng, nFeat))
+        batch_data = torch.cat(batch_data, dim=0)
+
+        output = predicted_output_from_npy[i]
+
+        loss = criterion(output.squeeze(), y)
         
+        total_loss += loss.item()
+
+    average_loss = total_loss/total_samples
+    print(f'Average Loss: {average_loss:.4f}')
+
+
 if __name__ == "__main__":
 
     hp = hyper_params()
     flags, hp, model_name = parse_flags(hp)
 
-    
+    loss_with_npy_file(hp,'')
+    exit()
     if flags.mode == "train":
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)
