@@ -28,7 +28,8 @@ model_classes = {
         "lstm2-basic":BASIC_LSTM2,#o
         "lstmcnn-basic":BASIC_LSTMCNN,#o
         "gru":GRU,#o
-        "rnn":BASIC_RNN#o
+        "rnn":BASIC_RNN,#o
+        "attention-lstm":ATTENTION_LSTM
     }
 
 def hyper_params():
@@ -36,7 +37,7 @@ def hyper_params():
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 60,
+        "seqLeng": 30,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
@@ -472,37 +473,44 @@ def test(hparams, model_type):
         plt.savefig(os.path.join(image_dir, f"month_{i+1}.png"))
         plt.close()
 
-def loss_with_npy_file(hparams, path_to_predicted_npy_file):
-    tstset  = WPD(hparams['tst_aws_dir'], hparams['tst_asos_dir'], hparams['tst_solar_dir'], hparams['tst_loc_ID'])    
+def loss_with_npy_file(path_to_predicted_npy_file):
+    tst_aws_dir = "./dataset/AWS/"
+    tst_asos_dir = "./dataset/ASOS/"
+    tst_solar_dir = "./samcheck/data/"
+    tst_loc_ID = 106
+    seqLeng = 60 
+    nBatch = 24  
+    solar_list, first_date, last_date = list_up_solar(tst_solar_dir)
+    aws_list = list_up_weather(tst_aws_dir, first_date, last_date)
+    asos_list = list_up_weather(tst_asos_dir, first_date, last_date)
+
+    tstset  = WPD(aws_list, asos_list, solar_list, tst_loc_ID)    
     tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
-    seqLeng = hparams['model']['seqLeng']
-    nBatch  = hparams['learning']['nBatch']
-    prev_data = torch.zeros([seqLeng, hparams['model']['input_dim']]).cuda()	# 7 is for featDim
+
 
     criterion = torch.nn.MSELoss()
     total_loss = 0
-    total_samples = len(tstloader) # Assumes each batch has one sample
+    total_samples = 24*243
 
-    # Load the predicted data from npy file
     predicted_output_from_npy = np.load(path_to_predicted_npy_file)
 
-    for i, (x, y) in enumerate(tstloader):
-        x = x.float()
+    for i, (_, y) in enumerate(tstloader):
+        #x = x.float()
         y = y.float()
-        x = x.squeeze().cuda()
-        x = torch.cat((prev_data, x), axis=0)
-        prev_data = x[-seqLeng:,:]
+        #x = x.squeeze().cuda()
+        #x = torch.cat((prev_data, x), axis=0)
+        #prev_data = x[-seqLeng:,:]
         y = y.squeeze().cuda()
 
-        nLeng, nFeat = x.shape
-        batch_data = []
-        for j in range(nBatch):
-            stridx = j*60
-            endidx = j*60 + seqLeng
-            batch_data.append(x[stridx:endidx,:].view(1, seqLeng, nFeat))
-        batch_data = torch.cat(batch_data, dim=0)
+        #nLeng, nFeat = x.shape
+        #batch_data = []
+        #for j in range(nBatch):
+        #    stridx = j*60
+        #    endidx = j*60 + seqLeng
+        #    batch_data.append(x[stridx:endidx,:].view(1, seqLeng, nFeat))
+        #batch_data = torch.cat(batch_data, dim=0)
 
-        output = predicted_output_from_npy[i]
+        output = torch.tensor(predicted_output_from_npy[i], device='cuda').float()
 
         loss = criterion(output.squeeze(), y)
         
@@ -512,13 +520,35 @@ def loss_with_npy_file(hparams, path_to_predicted_npy_file):
     print(f'Average Loss: {average_loss:.4f}')
 
 
+def plot_loss_from_npy(train_loss_npy_path, val_loss_npy_path):
+    # Load the npy files
+    train_losses = np.load(train_loss_npy_path)
+    val_losses = np.load(val_loss_npy_path)
+
+    # Find the index of the minimum validation loss
+    min_val_loss_idx = np.argmin(val_losses)
+    min_val_loss = val_losses[min_val_loss_idx]
+    min_val_loss = min_val_loss/(205)
+
+    # Plot the losses
+    plt.figure()
+    plt.plot(range(len(train_losses)), train_losses, "b", label='Training Loss')
+    plt.plot(range(len(val_losses)), val_losses, "r", label='Validation Loss')
+    plt.scatter(min_val_loss_idx, min_val_loss, color='k', label='Minimum Validation Loss')
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title(f"Training Loss, Min Val Loss: {min_val_loss:.4f} at Epoch {min_val_loss_idx}")
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
+    #plot_loss_from_npy("train_models/old/cnn-lstm_30_64-128_3000/trn_loss.npy","train_models/old/cnn-lstm_30_64-128_3000/val_loss.npy")
+    #loss_with_npy_file('train_models/old/gru_30_64_3000/test_result.npy')
+    #exit()
 
     hp = hyper_params()
     flags, hp, model_name = parse_flags(hp)
-
-    loss_with_npy_file(hp,'')
-    exit()
     if flags.mode == "train":
         if not os.path.isdir(flags.save_dir):
             os.makedirs(flags.save_dir)

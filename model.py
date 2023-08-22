@@ -4,6 +4,7 @@ from models.RNNs import GRUModule, BiGRUModule, LSTMModule
 from models.CNN import CNNModule
 from torchaudio.models import Conformer as ConformerModule
 from utility import conv_output_size, pool_output_size
+import torch.nn.functional as F
 
 # single pred model(LSTM, CNN, Conformer)
 
@@ -515,3 +516,58 @@ class GRU(nn.Module):
         out = out[:, -1, :]
         out = self.fc(out)
         return out
+    
+class ATTENTION_LSTM(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(ATTENTION_LSTM, self).__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            batch_first=True
+        )
+        self.attention_linear = nn.Linear(hidden_dim, 1)
+        self.fc = nn.Linear(hidden_dim, output_dim)
+
+    """
+    attention_linear : importance for sequence position.
+        output dim is one. it is single score for sequnce position.
+    softmax activation : The score for each sequence position is normalized using the softmax function. 
+        This will result in the sum of the attention weights for all sequence positions being 1. 
+        This indicates the relative importance of each position, which position is more important to the current task.
+    """
+    def attention_weights(self, lstm_out):
+        attn_weights = self.attention_linear(lstm_out)
+        attn_weights = F.softmax(attn_weights, dim=1)
+        return attn_weights
+
+    def forward(self, x):
+        lstm_out, (hidden, cell) = self.lstm(x)
+        attn_weights = self.attention_weights(lstm_out) 
+
+        context_vector = torch.sum(lstm_out * attn_weights, dim=1)
+
+        out = self.fc(context_vector)
+        return out
+    
+    def load_state_dict(self, state_dict):
+        self.lstm.load_state_dict(state_dict["lstm"])
+        self.fc.load_state_dict(state_dict["fc"])
+
+    def state_dict(self, destination=None, prefix="", keep_vars=False):
+        state_dict = {
+            "lstm": self.lstm.state_dict(
+                destination=destination, prefix=prefix, keep_vars=keep_vars
+            ),
+            "fc": self.fc.state_dict(
+                destination=destination, prefix=prefix, keep_vars=keep_vars
+            ),
+        }
+        return state_dict
+
+    def load_parameters(self, filename, save_flag=False):
+        parameters = {}
+        parameters.update({"lstm": self.lstm.state_dict()})
+        parameters.update({"fc": self.fc.state_dict()})
+        if save_flag:
+            torch.save(parameters, filename)
+        return parameters
