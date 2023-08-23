@@ -29,7 +29,8 @@ model_classes = {
         "lstmcnn-basic":BASIC_LSTMCNN,#o
         "gru":GRU,#o
         "rnn":BASIC_RNN,#o
-        "attention-lstm":ATTENTION_LSTM
+        "attention-lstm":ATTENTION_LSTM,#o
+        "transformer" : TRANSFORMER
     }
 
 def hyper_params():
@@ -37,14 +38,15 @@ def hyper_params():
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 30,
+        "seqLeng": 60,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
-        # LSTM of single model(LSTM), LSTM1 of hybrid model(LSTM1-LSTM2-CNN), GRU1 of hybrid model(GRU1-GRU2-CNN), BiGRU1 of hybrid model(CNN-BiGRU1)
+        # LSTM of single model(LSTM), LSTM1 of hybrid model(LSTM1-LSTM2-CNN), GRU1 of hybrid model(GRU1-GRU2-CNN), BiGRU1 of hybrid model(CNN-BiGRU1), transformer
         "nHidden1": 256, 
         "dropout1": 0, 
-        "num_layers1": 2, # 2: BiGRU1 of hybrid model(CNN-BiGRU1)
+        "num_layers1": 8, # 2: BiGRU1 of hybrid model(CNN-BiGRU1), Transformer num Layrer
+        
         
         # LSTM2 of hybrid model(LSTM-CNN), GRU2 of hybrid model(GRU1-GRU2-CNN)
         "nHidden2": 256,         
@@ -58,7 +60,11 @@ def hyper_params():
         "padding": nlayers*[1],
         "stride": nlayers*[1], 
         "nb_filters": [64, 128], # length of nb_filters should be equal to nlayers.
-        "pooling": nlayers*[1],     
+        "pooling": nlayers*[1],
+
+        # transformer
+        "nhead" : 8,
+        "d_model" : 512
     }
 
     learning_params = {
@@ -218,6 +224,10 @@ def train(hparams, model_type):
     elif model_type == "lstmcnn-basic": # hybrid model
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     elif model_type == "gru":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "attention-lstm":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "transformer":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     else:
         print("The provided model type is not recognized.")
@@ -383,6 +393,10 @@ def test(hparams, model_type):
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     elif model_type == "gru":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "attention-lstm":
+        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+    elif model_type == "transformer":
+        model = model_classes[model_type](input_dim, 512, 1)
     else:
         print("The provided model type is not recognized.")
         sys.exit(1)
