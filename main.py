@@ -70,7 +70,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 3000,
+        "max_epoch": 1500,
     }
 
     hparams = {
@@ -202,7 +202,10 @@ def train(hparams, model_type):
     stride = model_params["stride"] 
     nb_filters = model_params["nb_filters"]
     pooling = model_params["pooling"]
-    
+
+    d_model = model_params["d_model"]
+    nhead = model_params["nhead"]
+
     if model_type in ["lstm"]: # single model
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
     elif model_type in ["cnn"]: # single model, n_in_channel = input_dim
@@ -228,7 +231,7 @@ def train(hparams, model_type):
     elif model_type == "attention-lstm":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     elif model_type == "transformer":
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
+        model = model_classes[model_type](input_dim, output_dim, d_model, nhead)
     else:
         print("The provided model type is not recognized.")
         sys.exit(1)
@@ -248,58 +251,84 @@ def train(hparams, model_type):
     prev_loss = np.inf
     train_start = time.time()
     for epoch in range(max_epoch):
-        model.train()
-        loss = 0
-        prev_data = torch.zeros([seqLeng, input_dim]).cuda()
-        for i, (x, y) in enumerate(trnloader):
-            x = x.float()
-            y = y.float()
-            x = x.squeeze().cuda()
-            x = torch.cat((prev_data, x), axis=0)
-            prev_data = x[-seqLeng:, :]
-            y = y.squeeze().cuda()
+        if model_type != "transformer":
+            model.train()
+            loss = 0
+            prev_data = torch.zeros([seqLeng, input_dim]).cuda()
+            for i, (x, y) in enumerate(trnloader):
+                x = x.float()
+                y = y.float()
+                x = x.squeeze().cuda()
+                x = torch.cat((prev_data, x), axis=0)
+                prev_data = x[-seqLeng:, :]
+                y = y.squeeze().cuda()
 
-            nLeng, nFeat = x.shape
-            batch_data = []
-            for j in range(nBatch):
-                stridx = j * 60
-                endidx = j * 60 + seqLeng
-                batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
-            batch_data = torch.cat(batch_data, dim=0)
-            #batch_data = batch_data.double()
-            
-            output = model(batch_data.cuda())
-            loss += criterion(output.squeeze(), y)
+                nLeng, nFeat = x.shape
+                batch_data = []
+                for j in range(nBatch):
+                    stridx = j * 60
+                    endidx = j * 60 + seqLeng
+                    batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
+                batch_data = torch.cat(batch_data, dim=0)
 
+                output = model(batch_data.cuda())
+                loss += criterion(output.squeeze(), y)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        model.eval()
-        val_loss = 0
-        prev_data = torch.zeros([seqLeng, input_dim]).cuda()
-        for i, (x, y) in enumerate(valloader):
-            x = x.float()
-            y = y.float()
-            x = x.squeeze().cuda()
-            x = torch.cat((prev_data, x), axis=0).cuda()
-            prev_data = x[-seqLeng:, :]
-            y = y.squeeze().cuda()
+            model.eval()
+            val_loss = 0
+            prev_data = torch.zeros([seqLeng, input_dim]).cuda()
+            for i, (x, y) in enumerate(valloader):
+                x = x.float()
+                y = y.float()
+                x = x.squeeze().cuda()
+                x = torch.cat((prev_data, x), axis=0).cuda()
+                prev_data = x[-seqLeng:, :]
+                y = y.squeeze().cuda()
 
-            nLeng, nFeat = x.shape
-            batch_data = []
-            for j in range(nBatch):
-                stridx = j * 60
-                endidx = j * 60 + seqLeng
-                batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
-            batch_data = torch.cat(batch_data, dim=0)
+                nLeng, nFeat = x.shape
+                batch_data = []
+                for j in range(nBatch):
+                    stridx = j * 60
+                    endidx = j * 60 + seqLeng
+                    batch_data.append(x[stridx:endidx, :].view(1, seqLeng, nFeat))
+                batch_data = torch.cat(batch_data, dim=0)
 
-            output = model(batch_data.cuda())
-            val_loss += criterion(output.squeeze(), y)
+                output = model(batch_data.cuda())
+                val_loss += criterion(output.squeeze(), y)
+
+        else: # transformer
+            model.train()
+            total_loss = 0
+            for i, (x, y) in enumerate(trnloader):
+                x = x.float().cuda()
+                y = y.float().squeeze().cuda()
+
+                output = model(x)
+                loss = criterion(output[:, -1, :].squeeze(), y)
+                total_loss += loss.item()
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            # Validation
+            model.eval()
+            total_val_loss = 0
+            for i, (x, y) in enumerate(valloader):
+                x = x.float().cuda()
+                y = y.float().squeeze().cuda()
+
+                with torch.no_grad():
+                    output = model(x)
+                val_loss = criterion(output[:, -1, :].squeeze(), y)
+                total_val_loss += val_loss.item()
 
         if val_loss < prev_loss:
-            savePath = os.path.join(hparams["save_dir"], "best_model")  # overwrite
+            savePath = os.path.join(hparams["save_dir"], "best_model")
             model_dict = {"kwargs": model_params, "paramSet": model.state_dict()}
             torch.save(model_dict, savePath)
             prev_loss = val_loss
@@ -307,6 +336,7 @@ def train(hparams, model_type):
         losses.append(loss.item())
         val_losses.append(val_loss.item())
         logging.info(f"Epoch [{epoch+1}/{max_epoch}], Trn Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}")
+
     train_end = time.time()
     logging.info("\n")
     logging.info(f'Training time [sec]: {(train_end - train_start):.2f}')
@@ -368,7 +398,10 @@ def test(hparams, model_type):
     padding = model_params["padding"]
     stride = model_params["stride"] 
     nb_filters = model_params["nb_filters"]
-    pooling = model_params["pooling"]     
+    pooling = model_params["pooling"]
+
+    d_model = model_params["d_model"]
+    nhead = model_params["nhead"]
 
     if model_type in ["lstm"]: # single model
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
@@ -396,7 +429,7 @@ def test(hparams, model_type):
     elif model_type == "attention-lstm":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
     elif model_type == "transformer":
-        model = model_classes[model_type](input_dim, 512, 1)
+        model = model_classes[model_type](input_dim, output_dim, d_model, nhead)
     else:
         print("The provided model type is not recognized.")
         sys.exit(1)
@@ -425,7 +458,7 @@ def test(hparams, model_type):
         x = x.squeeze().cuda()
         x = torch.cat((prev_data, x), axis=0)
         prev_data = x[-seqLeng:,:]
-        y = y.squeeze().cuda()
+        y = y.squeeze(1).cuda()
 
         nLeng, nFeat = x.shape
         batch_data = []
@@ -436,6 +469,10 @@ def test(hparams, model_type):
         batch_data = torch.cat(batch_data, dim=0)
 
         output = model(batch_data)
+
+        if model_type == "transformer":
+            output = output[:, -1, :].squeeze()
+        
         result.append(output.detach().cpu().numpy())
         y_true.append(y.detach().cpu().numpy())
 

@@ -1,3 +1,4 @@
 *.zip
 *.npy
-train_models
+__pycache__
+best_model

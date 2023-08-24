@@ -1,0 +1,69 @@
+This is a log message.
+
+Current time: 2023-08-03 00:40:09.679400
+
+--------------------Hyperparameters--------------------
+
+model: {'seqLeng': 60, 'input_dim': 8, 'output_dim': 1, 'nHidden1': 512, 'dropout1': 0, 'num_layers1': 2, 'nHidden2': 512, 'dropout2': 0, 'num_layers2': 1, 'activ': 'glu', 'cnn_dropout': 0, 'kernel_size': [3, 3], 'padding': [1, 1], 'stride': [1, 1], 'nb_filters': [64, 128], 'pooling': [1, 1]}
+
+learning: {'nBatch': 24, 'lr': 0.001, 'max_epoch': 3000}
+
+loss_plot_flag: True
+
+save_losses: True
+
+save_result: True
+
+Model name: lstmcnn-basic
+
+
+--------------------Training Mode (Training and Validating)--------------------
+Training on the interval from 20220101 to 20221231.
+Validating on the interval from 20220609 to 20221231.
+
+This is a log message.
+
+Current time: 2023-08-03 00:40:56.436663
+
+--------------------Hyperparameters--------------------
+
+model: {'seqLeng': 60, 'input_dim': 8, 'output_dim': 1, 'nHidden1': 512, 'dropout1': 0, 'num_layers1': 2, 'nHidden2': 512, 'dropout2': 0, 'num_layers2': 1, 'activ': 'glu', 'cnn_dropout': 0, 'kernel_size': [3, 3], 'padding': [1, 1], 'stride': [1, 1], 'nb_filters': [64, 128], 'pooling': [1, 1]}
+
+learning: {'nBatch': 24, 'lr': 0.001, 'max_epoch': 3000}
+
+loss_plot_flag: True
+
+save_losses: True
+
+save_result: True
+
+Model name: lstmcnn-basic
+
+
+--------------------Training Mode (Training and Validating)--------------------
+Training on the interval from 20220101 to 20221231.
+Validating on the interval from 20220609 to 20221231.
+
+This is a log message.
+
+Current time: 2023-08-03 00:41:13.219874
+
+--------------------Hyperparameters--------------------
+
+model: {'seqLeng': 60, 'input_dim': 8, 'output_dim': 1, 'nHidden1': 512, 'dropout1': 0, 'num_layers1': 2, 'nHidden2': 512, 'dropout2': 0, 'num_layers2': 1, 'activ': 'glu', 'cnn_dropout': 0, 'kernel_size': [3, 3], 'padding': [1, 1], 'stride': [1, 1], 'nb_filters': [64, 128], 'pooling': [1, 1]}
+
+learning: {'nBatch': 24, 'lr': 0.001, 'max_epoch': 3000}
+
+loss_plot_flag: True
+
+save_losses: True
+
+save_result: True
+
+Model name: lstmcnn-basic
+
+
+--------------------Training Mode (Training and Validating)--------------------
+Training on the interval from 20220101 to 20221231.
+Validating on the interval from 20220609 to 20221231.
+

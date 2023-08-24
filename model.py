@@ -587,20 +587,43 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         return x + self.pe[:x.size(0), :]
-    
+
+#d_model은 n_head로 나누어 떨어져야 함.
 class TRANSFORMER(nn.Module):
-    def __init__(self, input_dim, d_model, output_dim, nhead=8, num_layers=6):
+    def __init__(self, input_dim,output_dim, d_model, nhead , num_layers = 4):
         super(TRANSFORMER, self).__init__()
         
         self.embedding = nn.Linear(input_dim, d_model)
-        self.pos_encoder = PositionalEncoding(d_model)
-        self.transformer = nn.Transformer(d_model, nhead, num_layers, num_layers)
-        self.fc = nn.Linear(d_model, output_dim)
+        self.positional_encoder = PositionalEncoding(d_model)
+        self.transformer = nn.Transformer(d_model, nhead, num_layers)
+        self.decoder = nn.Linear(d_model, output_dim)
         
-    def forward(self, src, tgt):
-        src = self.embedding(src)
-        src = self.pos_encoder(src)
-        tgt = self.embedding(tgt)
-        tgt = self.pos_encoder(tgt)
-        output = self.transformer(src, tgt)
-        return self.fc(output[-1])
+    def forward(self, x):
+        x = self.embedding(x)
+        x = self.positional_encoder(x)
+        output = self.transformer(x, x)
+        return self.decoder(output)
+    
+    def load_state_dict(self, state_dict):
+        self.embedding.load_state_dict(state_dict["embedding"])
+        self.transformer.load_state_dict(state_dict["transformer"])
+        self.decoder.load_state_dict(state_dict["decoder"])
+
+    def state_dict(self, destination=None, prefix="", keep_vars=False):
+        return {
+            "embedding": self.embedding.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
+            "transformer": self.transformer.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
+            "decoder": self.decoder.state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars),
+        }
+
+    def load_parameters(self, filename, save_flag=False):
+        parameters = {
+            "embedding": self.embedding.state_dict(),
+            "transformer": self.transformer.state_dict(),
+            "decoder": self.decoder.state_dict(),
+        }
+        if save_flag:
+            torch.save(parameters, filename)
+        else:
+            loaded_params = torch.load(filename)
+            self.load_state_dict(loaded_params)
