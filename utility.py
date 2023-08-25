@@ -66,6 +66,9 @@ def list_up_weather(weather_directory, first_date, last_date):
 
     return weather_list
 
+def extract_date_from_filename(filename, pre):
+    return filename.split(pre)[1][:8]
+
 def accuracy(y_true, y_pred, eps=1e-8):
     return np.mean(np.abs((y_true - y_pred) / (y_true+eps))) * 100
 
@@ -83,4 +86,3 @@ def print_parameters(model):
         if param.requires_grad:
             print(name, param.data)
 
-            

@@ -516,7 +516,7 @@ class GRU(nn.Module):
         out = out[:, -1, :]
         out = self.fc(out)
         return out
-    
+   
 class ATTENTION_LSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(ATTENTION_LSTM, self).__init__()

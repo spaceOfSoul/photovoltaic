@@ -6,12 +6,17 @@ import os
 import torch
 from torch.utils.data import Dataset
 
+from utility import extract_date_from_filename
 
 class WPD(Dataset):
     def __init__(self,aws_list,asos_list,energy_list,region_ID,input_dim=8,datapath="../dataset/",):
         self.aws_list = aws_list  # all files for weather info
         self.asos_list = asos_list
         self.elist = energy_list  # all files for power gener.
+        
+        self.aws_list = sorted(self.aws_list, key=lambda x: extract_date_from_filename(x, 'aws_gwd_'))
+        self.asos_list = sorted(self.asos_list, key=lambda x: extract_date_from_filename(x, 'asos_gwd_'))
+        
         self.rID = region_ID
         self.input_dim = input_dim
 
