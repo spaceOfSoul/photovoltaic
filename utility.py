@@ -31,11 +31,13 @@ def list_up_solar(solar_directory):
     first_ = solar_list[0].split('.')[1].split('/')
     first_year, first_month = first_[-2].split('_')
     first_day = str("%02d" % int(first_[-1]))
+    first_month = str("%02d" % int(first_month))###
     first_date = first_year+first_month+first_day
 
     last_ = solar_list[-1].split('.')[1].split('/')
     last_year, last_month = last_[-2].split('_')
     last_day = str("%02d" % int(last_[-1]))
+    last_month = str("%02d" % int(last_month))###
     last_date = last_year+last_month+last_day
     #print('Training with data from %s to %s.'%(first_date, last_date))
 
@@ -66,7 +68,7 @@ def list_up_weather(weather_directory, first_date, last_date):
 
     return weather_list
 
-def extract_date_from_filename(filename, pre):
+def extract_date_from_name(filename, pre):
     return filename.split(pre)[1][:8]
 
 def accuracy(y_true, y_pred, eps=1e-8):
