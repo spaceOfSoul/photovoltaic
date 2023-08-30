@@ -5,17 +5,15 @@ import os
 
 import torch
 from torch.utils.data import Dataset
+from sklearn.preprocessing import StandardScaler
 
-from utility import extract_date_from_name
+from utility import insolation_aprox
 
 class WPD(Dataset):
     def __init__(self,aws_list,asos_list,energy_list,region_ID,input_dim=8,datapath="../dataset/",):
         self.aws_list = aws_list  # all files for weather info
         self.asos_list = asos_list
         self.elist = energy_list  # all files for power gener.
-        
-        self.aws_list = sorted(self.aws_list, key=lambda x: extract_date_from_name(x, 'aws_gwd_'))
-        self.asos_list = sorted(self.asos_list, key=lambda x: extract_date_from_name(x, 'asos_gwd_'))
         
         self.rID = region_ID
         self.input_dim = input_dim
@@ -25,6 +23,8 @@ class WPD(Dataset):
 
         if not os.path.isdir(datapath):
             os.makedirs(datapath)
+            
+        self.weather_scaler = StandardScaler()
 
     def __len__(self):
         return len(self.aws_list)
@@ -124,6 +124,9 @@ class WPD(Dataset):
                 os.makedirs(dirname)
             np.save(weather_datapath, weather_data)
 
+        weather_data[:, 1:] = self.weather_scaler.fit_transform(weather_data[:, 1:])
+        insolation = np.array([insolation_aprox(t, n=4) for t in weather_data[:, 0]])
+        weather_data[:, 0] = insolation
         weather_data = torch.tensor(weather_data)
 
         efile_npy = efilepath.replace(".xlsx", ".npy")
