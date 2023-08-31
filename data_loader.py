@@ -111,8 +111,8 @@ class WPD(Dataset):
         self.global_std = np.std(all_data_concatenated, axis=0)
         
         self.weather_scaler = StandardScaler()
-        self.weather_scaler.mean_ = self.global_mean
-        self.weather_scaler.scale_ = self.global_std
+        self.weather_scaler.mean_ = self.global_mean[1:]
+        self.weather_scaler.scale_ = self.global_std[1:]
 
     def __len__(self):
         return len(self.aws_list)
