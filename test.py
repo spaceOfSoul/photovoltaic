@@ -51,10 +51,7 @@ def test(hparams, model_type):
     padding = model_params["padding"]
     stride = model_params["stride"] 
     nb_filters = model_params["nb_filters"]
-    pooling = model_params["pooling"]
-
-    d_model = model_params["d_model"]
-    nhead = model_params["nhead"]
+    pooling = model_params["pooling"]     
 
     if model_type in ["lstm"]: # single model
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim, dropout1, num_layers1)
@@ -79,10 +76,6 @@ def test(hparams, model_type):
         model = model_classes[model_type](input_dim, hidden_dim1, hidden_dim2, seqLeng, output_dim)
     elif model_type == "gru":
         model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "attention-lstm":
-        model = model_classes[model_type](input_dim, hidden_dim1, output_dim)
-    elif model_type == "transformer":
-        model = model_classes[model_type](input_dim, output_dim, d_model, nhead)
     else:
         print("The provided model type is not recognized.")
         sys.exit(1)
@@ -111,7 +104,7 @@ def test(hparams, model_type):
         x = x.squeeze().cuda()
         x = torch.cat((prev_data, x), axis=0)
         prev_data = x[-seqLeng:,:]
-        y = y.squeeze(1).cuda()
+        y = y.squeeze().cuda()
 
         nLeng, nFeat = x.shape
         batch_data = []
@@ -122,10 +115,6 @@ def test(hparams, model_type):
         batch_data = torch.cat(batch_data, dim=0)
 
         output = model(batch_data)
-
-        if model_type == "transformer":
-            output = output[:, -1, :].squeeze()
-        
         result.append(output.detach().cpu().numpy())
         y_true.append(y.detach().cpu().numpy())
 
@@ -176,49 +165,3 @@ def test(hparams, model_type):
         plt.title(f'month {i+1}')
         plt.savefig(os.path.join(image_dir, f"month_{i+1}.png"))
         plt.close()
-
-def loss_with_npy_file(path_to_predicted_npy_file):
-    tst_aws_dir = "./dataset/AWS/"
-    tst_asos_dir = "./dataset/ASOS/"
-    tst_solar_dir = "./samcheck/data/"
-    tst_loc_ID = 106
-    seqLeng = 60 
-    nBatch = 24  
-    solar_list, first_date, last_date = list_up_solar(tst_solar_dir)
-    aws_list = list_up_weather(tst_aws_dir, first_date, last_date)
-    asos_list = list_up_weather(tst_asos_dir, first_date, last_date)
-
-    tstset  = WPD(aws_list, asos_list, solar_list, tst_loc_ID)    
-    tstloader = DataLoader(tstset, batch_size=1, shuffle=False, drop_last=True)
-
-
-    criterion = torch.nn.MSELoss()
-    total_loss = 0
-    total_samples = 24*243
-
-    predicted_output_from_npy = np.load(path_to_predicted_npy_file)
-
-    for i, (_, y) in enumerate(tstloader):
-        #x = x.float()
-        y = y.float()
-        #x = x.squeeze().cuda()
-        #x = torch.cat((prev_data, x), axis=0)
-        #prev_data = x[-seqLeng:,:]
-        y = y.squeeze().cuda()
-
-        #nLeng, nFeat = x.shape
-        #batch_data = []
-        #for j in range(nBatch):
-        #    stridx = j*60
-        #    endidx = j*60 + seqLeng
-        #    batch_data.append(x[stridx:endidx,:].view(1, seqLeng, nFeat))
-        #batch_data = torch.cat(batch_data, dim=0)
-
-        output = torch.tensor(predicted_output_from_npy[i], device='cuda').float()
-
-        loss = criterion(output.squeeze(), y)
-        
-        total_loss += loss.item()
-
-    average_loss = total_loss/total_samples
-    print(f'Average Loss: {average_loss:.4f}')

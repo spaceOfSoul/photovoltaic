@@ -16,7 +16,7 @@ def hyper_params():
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 60,
+        "seqLeng": 30,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
