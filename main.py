@@ -16,7 +16,7 @@ def hyper_params():
     nlayers = 2 # nlayers of CNN 
     model_params = { 
         # Common
-        "seqLeng": 30,
+        "seqLeng": 60,
         "input_dim": 8, # feature 7 + time 1
         "output_dim": 1, 
         
@@ -48,7 +48,7 @@ def hyper_params():
     learning_params = {
         "nBatch": 24,
         "lr": 1.0e-3,
-        "max_epoch": 5000,
+        "max_epoch": 1000,
     }
 
     hparams = {
